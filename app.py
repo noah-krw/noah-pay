@@ -2,68 +2,73 @@ import streamlit as st
 
 st.set_page_config(page_title="Noah Settlement System", layout="wide")
 
-st.title("💰 Noah 정산 시스템 v1.1")
+st.title("💰 Noah 전용 정산 시스템")
 
-# 1. 환율 및 요율 설정 섹션
-st.sidebar.header("⚙️ 설정")
-
-# 환율 선택 기능 (4%, 4.5%, 5% 수동 선택)
+# --- 1단계: 설정 및 입력 ---
+st.sidebar.header("⚙️ 1. 환율 설정")
 rate_choice = st.sidebar.radio(
-    "적용 환율 선택",
+    "적용 환율 (KP 선택)",
     ("4% (1.04)", "4.5% (1.045)", "5% (1.05)"),
     index=1
 )
 
-# 선택된 값에 따른 배수 설정
-if "4.5%" in rate_choice:
-    multiplier = 1.045
-elif "4%" in rate_choice:
-    multiplier = 1.04
-else:
-    multiplier = 1.05
-
-# 빗썸 기준 시세 입력창
+multiplier = 1.04 if "4%" in rate_choice else 1.045 if "4.5%" in rate_choice else 1.05
 base_rate = st.sidebar.number_input("현재 빗썸 시세 (KRW)", min_value=1000, value=1450, step=1)
-final_rate = base_rate * multiplier
+final_rate = int(-(-(base_rate * multiplier) // 1))
 
-st.sidebar.info(f"최종 적용 환율: {int(-(-final_rate // 1)):,} 원")
+st.sidebar.info(f"💡 최종 적용 환율: {final_rate:,} 원")
 
-# 2. 정산 입력 섹션
+st.header("Step 1. 정산 정보 입력")
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("📥 입금/출금 입력")
-    category = st.selectbox("업체 선택", ["일반 업체", "V99mm", "드래곤 게이트"])
-    amount_usd = st.number_input("금액 입력 (USDT/USD)", min_value=0.0, step=100.0)
+    merchant = st.selectbox("업체 선택", ["일반 업체", "V99mm", "드래곤 게이트"])
+    amount_usd = st.number_input("금액 (USDT/USD)", min_value=0.0, step=100.0)
     
-    # 요율 설정
-    if category == "V99mm":
-        in_fee, out_fee = 0.03, 0.015
-    else:
-        in_fee, out_fee = 0.03, 0.01
-        
-    type_choice = st.radio("거래 종류", ["입금 (Deposit)", "payout (출금)"])
-
 with col2:
-    st.subheader("📝 settlement 결과")
-    
-    raw_krw = amount_usd * final_rate
-    
-    if "입금" in type_choice:
-        fee_amount = raw_krw * in_fee
-        final_krw = raw_krw - fee_amount
-    else:
-        fee_amount = raw_krw * out_fee
-        final_krw = raw_krw + fee_amount
-        
-    # 드래곤 게이트 추가 적립 (0.5%)
-    dragon_bonus = 0
-    if category == "드래곤 게이트":
-        dragon_bonus = raw_krw * 0.005
+    trans_type = st.radio("거래 종류", ["입금 (Deposit)", "payout (출금)"])
 
-    st.metric("최종 KRW (올림 처리)", f"{int(-(-final_krw // 1)):,} 원")
-    if dragon_bonus > 0:
-        st.write(f"🐉 드래곤 게이트 추가 적립: {int(-(-dragon_bonus // 1)):,} 원")
+# 요율 결정
+if merchant == "V99mm":
+    fee_rate = 0.03 if "입금" in trans_type else 0.015
+else:
+    fee_rate = 0.03 if "입금" in trans_type else 0.01
+
+# --- 2단계: 계산 ---
+raw_krw = amount_usd * final_rate
+fee_amount = raw_krw * fee_rate
+final_krw = int(-(-(raw_krw - fee_amount) // 1)) if "입금" in trans_type else int(-(-(raw_krw + fee_amount) // 1))
+
+# 드래곤 게이트 0.5% 별도 계산
+dragon_bonus = int(-(-(raw_krw * 0.005) // 1)) if merchant == "드래곤 게이트" else 0
 
 st.divider()
-st.write("모든 계산은 소수점 올림 처리됩니다.")
+
+# --- 3단계: 결과 및 복사 양식 ---
+st.header("Step 2 & 3. 정산 결과 및 복사")
+
+res_col1, res_col2 = st.columns(2)
+
+with res_col1:
+    st.metric("최종 정산 금액 (KRW)", f"{final_krw:,} 원")
+    if dragon_bonus > 0:
+        st.write(f"🐉 드래곤 게이트 추가 적립: **{dragon_bonus:,} 원**")
+
+with res_col2:
+    # 텔레그램 복사용 텍스트 생성
+    status = "settlement"
+    copy_text = f"""
+    [ {merchant} {status} ]
+    - 수량: {amount_usd:,.2f} USDT
+    - 적용 환율: {final_rate:,} 원 ({rate_choice.split(' ')[0]} 적용)
+    - 수수료: {int(fee_rate*100*10)/10}%
+    - 최종 금액: {final_krw:,} KRW
+    """
+    if dragon_bonus > 0:
+        copy_text += f"- 드래곤 추가 적립: {dragon_bonus:,} KRW"
+    
+    st.text_area("텔레그램 복사용 양식", value=copy_text.strip(), height=150)
+    st.caption("위 박스의 내용을 복사해서 공유하세요.")
+
+st.divider()
+st.write("모든 결과값은 '올림' 처리되었습니다.")
