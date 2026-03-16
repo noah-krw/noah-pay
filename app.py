@@ -4,7 +4,7 @@ import json
 import os
 import re
 
-# [정산 매크로 v76 - Noah 전용: 버튼 노출 보장 버전]
+# [정산 매크로 v76 - Noah 전용: 문구 형식 복구 및 복사영역 상시노출]
 
 DB_FILE = "merchants.json"
 
@@ -26,13 +26,11 @@ def extract_int(text):
 
 st.set_page_config(page_title="정산 매크로 v76", layout="centered")
 
-# CSS: 디자인 유지
 st.markdown("""
     <style>
     html, body, [data-testid="stAppViewContainer"] { background-color: #1e1e1e !important; color: #e0e0e0 !important; }
     div[data-baseweb="input"] { background-color: #2d2d2d !important; border: 1px solid #444 !important; }
     input { color: #f1c40f !important; font-size: 1.1em !important; font-weight: bold !important; }
-    .stButton>button { width: 100%; border-radius: 4px; background-color: #34495e; color: white; border: none; font-weight: bold; height: 45px; margin-bottom: 10px; }
     .m-header { background-color: #000; color: #ffffff; padding: 10px; border-radius: 4px; text-align: center; margin-bottom: 20px; border: 1px solid #333; font-size: 1.1em; font-weight: bold; }
     .label { color: #5dade2; font-weight: bold; margin-top: 15px; margin-bottom: 5px; }
     .rate-box { background-color: #2d2d2d; padding: 8px; border-radius: 5px; border-left: 5px solid #f1c40f; margin-bottom: 10px; text-align: center; }
@@ -67,34 +65,45 @@ if st.session_state.page == 'settle':
     st.markdown(f'<div class="rate-box"><span class="rate-text">1 USDT = {current_rate:,} KRW</span></div>', unsafe_allow_html=True)
 
     # 2. 정산 문구
-    st.markdown('<p class="label">2. 정산 금액 (KRW)</p>', unsafe_allow_html=True)
+    st.markdown('<p class="label">2. 정산 문구 복사영역</p>', unsafe_allow_html=True)
     amount = extract_int(st.text_input("정산 금액", value="0", key="amt_in"))
     if amount > 0:
         usdt_val = round(amount / current_rate, 2)
-        confirm_msg = f"- {selected_m} settlement amount : {amount:,} krw\n- exchange to usdt : {usdt_val:,.2f} usdt\n- 1usdt = {current_rate:,} krw\n\n{m_info['wallet']}"
+        confirm_msg = (
+            f"- {selected_m} settlement amount : {amount:,} krw\n"
+            f"- exchange to usdt : {usdt_val:,.2f} usdt\n"
+            f"- 1usdt = {current_rate:,} krw\n\n"
+            f"{m_info['wallet']}\n\n"
+            f"Please confirm the address and calculation.\n"
+            f"Once approved, we will proceed immediately"
+        )
         st.code(confirm_msg, language="text")
-        if st.button("📋 정산 문구 복사 준비"):
-            st.info("위의 검은 박스 오른쪽 상단 아이콘을 누르거나, 아래 텍스트를 드래그하세요.")
-            st.text_area("Copy Label", value=confirm_msg, height=100)
+        st.text_area("⬆️ 위 문구 드래그 복사용", value=confirm_msg, height=180)
 
     # 3. 최종 잔액 보고
-    st.markdown('<p class="label">3. 최종 잔액 보고</p>', unsafe_allow_html=True)
+    st.markdown('<p class="label">3. 최종 잔액 보고 복사영역</p>', unsafe_allow_html=True)
     balance = extract_int(st.text_input("잔액 입력", value="0", key="bal_in"))
     if balance > 0 and amount > 0:
-        final_msg = f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {amount:,} krw\nexchange to usdt : {math.ceil(amount / current_rate):,} usdt\n1usdt = {current_rate:,} krw\n\n- {selected_m} : {balance:,} krw"
+        final_msg = (
+            f"Balance & settlement update\n\n"
+            f"- {selected_m}\n"
+            f"settlement amount : {amount:,} krw\n"
+            f"exchange to usdt : {math.ceil(amount / current_rate):,} usdt\n"
+            f"1usdt = {current_rate:,} krw\n\n"
+            f"- {selected_m} : {balance:,} krw"
+        )
         st.code(final_msg, language="text")
-        if st.button("📋 잔액 보고 복사 준비"):
-            st.text_area("Copy Label", value=final_msg, height=120)
+        st.text_area("⬆️ 위 잔액 보고 드래그 복사용", value=final_msg, height=180)
 
     # 4. 게이트 수수료
     st.markdown('<p class="label">4. 게이트 수수료</p>', unsafe_allow_html=True)
-    if st.button("📋 수수료 멘트 생성 및 복사"):
+    if st.button("수수료 멘트 생성"):
         if amount > 0:
             f_val = float(m_info.get('fee', 0.5))
             fee_krw = int(amount * f_val / 100)
             fee_msg = f"드래곤 테더정산 수수료 {f_val}% {selected_m} / {amount:,} / {fee_krw:,}"
             st.code(fee_msg, language="text")
-            st.text_area("Copy Label", value=fee_msg, height=50)
+            st.text_area("⬆️ 수수료 멘트 드래그 복사용", value=fee_msg, height=70)
 else:
     st.title("⚙️ 머천트 설정 관리")
     for name, info in list(db.items()):
