@@ -4,7 +4,7 @@ import json
 import os
 import re
 
-# [정산 매크로 v76 - Noah 커스텀: 환율 가로 선택 기능]
+# [정산 매크로 v76 - Noah 커스텀: 가독성 극대화 버전]
 
 DB_FILE = "merchants.json"
 
@@ -37,8 +37,8 @@ st.markdown("""
     .stButton>button { width: 100%; border-radius: 4px; background-color: #34495e; color: white; border: none; font-weight: bold; }
     .m-header { background-color: #000; color: #ffffff; padding: 12px; border-radius: 4px; text-align: center; margin-bottom: 20px; border: 1px solid #333; font-size: 1.2em; font-weight: bold; }
     .label { color: #5dade2; font-weight: bold; margin-top: 15px; margin-bottom: 5px; }
-    /* 가로 라디오 버튼 스타일 */
-    div[data-testid="stHorizontalBlock"] div[data-testid="stVerticalBlock"] { gap: 0rem; }
+    .rate-box { background-color: #2d2d2d; padding: 10px; border-radius: 5px; border-left: 5px solid #f1c40f; margin-bottom: 10px; }
+    .rate-text { color: #f1c40f; font-size: 1.5em; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -63,7 +63,6 @@ if st.session_state.page == 'settle':
     # 1. 환율 설정
     st.markdown('<p class="label">1. 환율 설정</p>', unsafe_allow_html=True)
     
-    # --- 가로 선택 버튼 추가 ---
     rate_choice = st.radio(
         "배수 선택",
         ["4%", "4.5%", "5%"],
@@ -73,7 +72,6 @@ if st.session_state.page == 'settle':
     )
     
     multiplier = 1.04 if rate_choice == "4%" else 1.045 if rate_choice == "4.5%" else 1.05
-    # --------------------------
 
     c1, c2 = st.columns(2)
     with c1:
@@ -84,7 +82,14 @@ if st.session_state.page == 'settle':
         s_val = extract_int(s_raw)
     
     current_rate = s_val if s_val > 0 else math.ceil(b_val * multiplier)
-    st.code(f"1usdt = {current_rate:,} krw (배수: {multiplier})", language="text")
+    
+    # 텍스트 표시 개선
+    st.markdown(f'''
+        <div class="rate-box">
+            <span style="color: #e0e0e0;">적용 환율: </span>
+            <span class="rate-text">1 USDT = {current_rate:,} KRW</span>
+        </div>
+    ''', unsafe_allow_html=True)
 
     # 2. 정산 문구
     st.markdown('<p class="label">2. 정산 금액 (KRW)</p>', unsafe_allow_html=True)
@@ -112,6 +117,7 @@ if st.session_state.page == 'settle':
 
 else:
     st.title("⚙️ 머천트 설정 관리")
+    # (관리 코드는 이전과 동일)
     for name, info in list(db.items()):
         with st.expander(f"🏢 {name} 수정/삭제"):
             u_wallet = st.text_input(f"지갑 주소", value=info['wallet'], key=f"w_{name}")
