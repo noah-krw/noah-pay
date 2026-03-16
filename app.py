@@ -4,7 +4,7 @@ import json
 import os
 import re
 
-# [정산 매크로 v76 - Noah 커스텀: 가독성 극대화 버전]
+# [정산 매크로 v76 - Noah 커스텀: 최종 심플 버전]
 
 DB_FILE = "merchants.json"
 
@@ -37,8 +37,8 @@ st.markdown("""
     .stButton>button { width: 100%; border-radius: 4px; background-color: #34495e; color: white; border: none; font-weight: bold; }
     .m-header { background-color: #000; color: #ffffff; padding: 12px; border-radius: 4px; text-align: center; margin-bottom: 20px; border: 1px solid #333; font-size: 1.2em; font-weight: bold; }
     .label { color: #5dade2; font-weight: bold; margin-top: 15px; margin-bottom: 5px; }
-    .rate-box { background-color: #2d2d2d; padding: 10px; border-radius: 5px; border-left: 5px solid #f1c40f; margin-bottom: 10px; }
-    .rate-text { color: #f1c40f; font-size: 1.5em; font-weight: bold; }
+    .rate-box { background-color: #2d2d2d; padding: 10px; border-radius: 5px; border-left: 5px solid #f1c40f; margin-bottom: 10px; text-align: center; }
+    .rate-text { color: #f1c40f; font-size: 1.8em; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -64,11 +64,8 @@ if st.session_state.page == 'settle':
     st.markdown('<p class="label">1. 환율 설정</p>', unsafe_allow_html=True)
     
     rate_choice = st.radio(
-        "배수 선택",
-        ["4%", "4.5%", "5%"],
-        index=1,
-        horizontal=True,
-        label_visibility="collapsed"
+        "배수", ["4%", "4.5%", "5%"],
+        index=1, horizontal=True, label_visibility="collapsed"
     )
     
     multiplier = 1.04 if rate_choice == "4%" else 1.045 if rate_choice == "4.5%" else 1.05
@@ -83,13 +80,8 @@ if st.session_state.page == 'settle':
     
     current_rate = s_val if s_val > 0 else math.ceil(b_val * multiplier)
     
-    # 텍스트 표시 개선
-    st.markdown(f'''
-        <div class="rate-box">
-            <span style="color: #e0e0e0;">적용 환율: </span>
-            <span class="rate-text">1 USDT = {current_rate:,} KRW</span>
-        </div>
-    ''', unsafe_allow_html=True)
+    # Noah 요청대로 군더더기 없이 출력
+    st.markdown(f'<div class="rate-box"><span class="rate-text">1 USDT = {current_rate:,} KRW</span></div>', unsafe_allow_html=True)
 
     # 2. 정산 문구
     st.markdown('<p class="label">2. 정산 금액 (KRW)</p>', unsafe_allow_html=True)
@@ -108,7 +100,8 @@ if st.session_state.page == 'settle':
         final_msg = f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {amount:,} krw\nexchange to usdt : {math.ceil(amount / current_rate):,} usdt\n1usdt = {current_rate:,} krw\n\n- {selected_m} : {balance:,} krw"
         st.code(final_msg, language="text")
 
-    # 4. 수수료
+    # 4. 복사 버튼 (수수료 멘트 생성)
+    st.markdown('<p class="label">4. 복사 기능</p>', unsafe_allow_html=True)
     if st.button("게이트 수수료 멘트 생성"):
         if amount > 0:
             f_val = float(m_info.get('fee', 0.5))
@@ -116,8 +109,8 @@ if st.session_state.page == 'settle':
             st.code(f"드래곤 테더정산 수수료 {f_val}% {selected_m} / {amount:,} / {fee_krw:,}", language="text")
 
 else:
+    # 관리 페이지는 그대로 유지
     st.title("⚙️ 머천트 설정 관리")
-    # (관리 코드는 이전과 동일)
     for name, info in list(db.items()):
         with st.expander(f"🏢 {name} 수정/삭제"):
             u_wallet = st.text_input(f"지갑 주소", value=info['wallet'], key=f"w_{name}")
