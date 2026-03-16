@@ -1,74 +1,154 @@
 import streamlit as st
+import math
+import json
+import os
+import re
 
-st.set_page_config(page_title="Noah Settlement System", layout="wide")
+# [정산 매크로 v76 - Noah 커스텀: 환율 선택 기능 추가]
 
-st.title("💰 Noah 전용 정산 시스템")
+DB_FILE = "merchants.json"
 
-# --- 1단계: 설정 및 입력 ---
-st.sidebar.header("⚙️ 1. 환율 설정")
-rate_choice = st.sidebar.radio(
-    "적용 환율 (KP 선택)",
-    ("4% (1.04)", "4.5% (1.045)", "5% (1.05)"),
-    index=1
-)
+def load_data():
+    if os.path.exists(DB_FILE):
+        try:
+            with open(DB_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except: pass
+    return {
+        'spfxm': {'wallet': 'TRX_Wallet_Example_1', 'fee': '0.5'},
+        'V99': {'wallet': 'TRX_Wallet_Example_2', 'fee': '1.5'}
+    }
 
-multiplier = 1.04 if "4%" in rate_choice else 1.045 if "4.5%" in rate_choice else 1.05
-base_rate = st.sidebar.number_input("현재 빗썸 시세 (KRW)", min_value=1000, value=1450, step=1)
-final_rate = int(-(-(base_rate * multiplier) // 1))
+def save_data(data):
+    with open(DB_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
 
-st.sidebar.info(f"💡 최종 적용 환율: {final_rate:,} 원")
+def extract_int(text):
+    num_str = re.sub(r'[^0-9]', '', text)
+    return int(num_str) if num_str else 0
 
-st.header("Step 1. 정산 정보 입력")
-col1, col2 = st.columns(2)
+st.set_page_config(page_title="정산 매크로 v76", layout="centered")
 
-with col1:
-    merchant = st.selectbox("업체 선택", ["일반 업체", "V99mm", "드래곤 게이트"])
-    amount_usd = st.number_input("금액 (USDT/USD)", min_value=0.0, step=100.0)
+# CSS: 기존 v76 스타일 유지
+st.markdown("""
+    <style>
+    html, body, [data-testid="stAppViewContainer"] { background-color: #1e1e1e !important; color: #e0e0e0 !important; }
+    div[data-baseweb="input"] { background-color: #2d2d2d !important; border: 1px solid #444 !important; }
+    input { color: #f1c40f !important; font-size: 1.2em !important; font-weight: bold !important; }
+    .stButton>button { width: 100%; border-radius: 4px; background-color: #34495e; color: white; border: none; font-weight: bold; }
+    .m-header { background-color: #000; color: #ffffff; padding: 12px; border-radius: 4px; text-align: center; margin-bottom: 20px; border: 1px solid #333; font-size: 1.2em; font-weight: bold; }
+    .label { color: #5dade2; font-weight: bold; margin-top: 15px; margin-bottom: 5px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+db = load_data()
+
+if 'page' not in st.session_state:
+    st.session_state.page = 'settle'
+
+# ---------------------------------------------------------
+# 사이드바: 환율 선택 기능 추가
+# ---------------------------------------------------------
+with st.sidebar:
+    st.title("메뉴 바로가기")
+    if st.button("🚀 실시간 정산 작업"):
+        st.session_state.page = 'settle'
+    if st.button("⚙️ 머천트 설정 관리"):
+        st.session_state.page = 'admin'
     
-with col2:
-    trans_type = st.radio("거래 종류", ["입금 (Deposit)", "payout (출금)"])
+    st.markdown("---")
+    st.subheader("💡 환율 배수 선택")
+    rate_option = st.radio(
+        "적용할 KP를 선택하세요",
+        ("4% (1.04)", "4.5% (1.045)", "5% (1.05)"),
+        index=1 # 기본값 4.5%
+    )
+    
+    if "4.5%" in rate_option:
+        kp_multiplier = 1.045
+    elif "4%" in rate_option:
+        kp_multiplier = 1.04
+    else:
+        kp_multiplier = 1.05
 
-# 요율 결정
-if merchant == "V99mm":
-    fee_rate = 0.03 if "입금" in trans_type else 0.015
+# ---------------------------------------------------------
+# 페이지 1: 정산 작업창 (기존 디자인 유지)
+# ---------------------------------------------------------
+if st.session_state.page == 'settle':
+    st.title("🚀 실시간 정산 작업")
+    selected_m = st.selectbox("정산 업체 선택", list(db.keys()))
+    m_info = db.get(selected_m, {"wallet": "-", "fee": "0.5"})
+    st.markdown(f'<div class="m-header">{selected_m} 정산 모드</div>', unsafe_allow_html=True)
+
+    # 1. 환율
+    st.markdown('<p class="label">1. 환율 설정</p>', unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        b_raw = st.text_input("빗썸 시세", value="0", key="bithumb")
+        b_val = extract_int(b_raw)
+    with c2:
+        s_raw = st.text_input("수동 환율", value="0", key="manual")
+        s_val = extract_int(s_raw)
+    
+    # 사이드바에서 선택한 배수 적용
+    current_rate = s_val if s_val > 0 else math.ceil(b_val * kp_multiplier)
+    st.code(f"1usdt = {current_rate:,} krw (배수: {kp_multiplier})", language="text")
+
+    # 2. 정산 문구
+    st.markdown('<p class="label">2. 정산 금액 (KRW)</p>', unsafe_allow_html=True)
+    amt_raw = st.text_input("정산 금액", value="0", key="amt_in")
+    amount = extract_int(amt_raw)
+    if amount > 0:
+        usdt_val = round(amount / current_rate, 2)
+        confirm_msg = f"- {selected_m} settlement amount : {amount:,} krw\n- exchange to usdt : {usdt_val:,.2f} usdt\n- 1usdt = {current_rate:,} krw\n\n{m_info['wallet']}\n\nPlease confirm the address and calculation."
+        st.code(confirm_msg, language="text")
+
+    # 3. 잔액 보고
+    st.markdown('<p class="label">3. 최종 잔액 보고</p>', unsafe_allow_html=True)
+    bal_raw = st.text_input("잔액 입력", value="0", key="bal_in")
+    balance = extract_int(bal_raw)
+    if balance > 0 and amount > 0:
+        final_msg = f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {amount:,} krw\nexchange to usdt : {math.ceil(amount / current_rate):,} usdt\n1usdt = {current_rate:,} krw\n\n- {selected_m} : {balance:,} krw"
+        st.code(final_msg, language="text")
+
+    # 4. 수수료
+    if st.button("게이트 수수료 멘트 생성"):
+        if amount > 0:
+            f_val = float(m_info.get('fee', 0.5))
+            fee_krw = int(amount * f_val / 100)
+            st.code(f"드래곤 테더정산 수수료 {f_val}% {selected_m} / {amount:,} / {fee_krw:,}", language="text")
+
+# ---------------------------------------------------------
+# 페이지 2: 머천트 설정 관리
+# ---------------------------------------------------------
 else:
-    fee_rate = 0.03 if "입금" in trans_type else 0.01
-
-# --- 2단계: 계산 ---
-raw_krw = amount_usd * final_rate
-fee_amount = raw_krw * fee_rate
-final_krw = int(-(-(raw_krw - fee_amount) // 1)) if "입금" in trans_type else int(-(-(raw_krw + fee_amount) // 1))
-
-# 드래곤 게이트 0.5% 별도 계산
-dragon_bonus = int(-(-(raw_krw * 0.005) // 1)) if merchant == "드래곤 게이트" else 0
-
-st.divider()
-
-# --- 3단계: 결과 및 복사 양식 ---
-st.header("Step 2 & 3. 정산 결과 및 복사")
-
-res_col1, res_col2 = st.columns(2)
-
-with res_col1:
-    st.metric("최종 정산 금액 (KRW)", f"{final_krw:,} 원")
-    if dragon_bonus > 0:
-        st.write(f"🐉 드래곤 게이트 추가 적립: **{dragon_bonus:,} 원**")
-
-with res_col2:
-    # 텔레그램 복사용 텍스트 생성
-    status = "settlement"
-    copy_text = f"""
-    [ {merchant} {status} ]
-    - 수량: {amount_usd:,.2f} USDT
-    - 적용 환율: {final_rate:,} 원 ({rate_choice.split(' ')[0]} 적용)
-    - 수수료: {int(fee_rate*100*10)/10}%
-    - 최종 금액: {final_krw:,} KRW
-    """
-    if dragon_bonus > 0:
-        copy_text += f"- 드래곤 추가 적립: {dragon_bonus:,} KRW"
-    
-    st.text_area("텔레그램 복사용 양식", value=copy_text.strip(), height=150)
-    st.caption("위 박스의 내용을 복사해서 공유하세요.")
-
-st.divider()
-st.write("모든 결과값은 '올림' 처리되었습니다.")
+    st.title("⚙️ 머천트 설정 관리")
+    # ... (기존과 동일한 관리 코드)
+    for name, info in list(db.items()):
+        with st.expander(f"🏢 {name} 수정/삭제"):
+            u_wallet = st.text_input(f"지갑 주소", value=info['wallet'], key=f"w_{name}")
+            u_fee = st.text_input(f"요율 (%)", value=info['fee'], key=f"f_{name}")
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button(f"{name} 저장", key=f"s_{name}"):
+                    db[name] = {"wallet": u_wallet, "fee": u_fee}
+                    save_data(db)
+                    st.success("저장 완료!")
+                    st.rerun()
+            with c2:
+                if st.button(f"{name} 삭제", key=f"d_{name}"):
+                    del db[name]
+                    save_data(db)
+                    st.warning("삭제 완료!")
+                    st.rerun()
+    st.markdown("---")
+    with st.expander("➕ 새 머천트 추가"):
+        new_name = st.text_input("신규 업체명 (영문)")
+        new_wallet = st.text_input("신규 지갑 주소")
+        new_fee = st.text_input("기본 수수료 (%)", value="0.5")
+        if st.button("업체 등록"):
+            if new_name:
+                db[new_name] = {"wallet": new_wallet, "fee": new_fee}
+                save_data(db)
+                st.success(f"{new_name} 등록 완료!")
+                st.rerun()
