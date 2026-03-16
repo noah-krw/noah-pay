@@ -4,12 +4,12 @@ import json
 import os
 import re
 
-# [정산 매크로 v76 - Noah 전용: 이름 변경/비고란/UI 최적화 버전]
+# [정산 매크로 v76 - Noah 전용: 버튼 밀착 및 알림 지속성 강화 버전]
 
 DB_FILE = "merchants.json"
 
-def load_data():
-    full_list = {
+def get_default_list():
+    return {
         'dr188': {'wallet': 'TBMTb9TFFXDuqhjLKLp9Yo26QHRnnG6jPN', 'fee': '0.5', 'note': '드래곤 메인'},
         'drgtssen': {'wallet': 'TRX_Wallet_drgtssen', 'fee': '0.5', 'note': ''},
         'Dpinnacle': {'wallet': 'TRX_Wallet_Dpinnacle', 'fee': '0.5', 'note': ''},
@@ -24,18 +24,21 @@ def load_data():
         'spfxm': {'wallet': 'TRX_Wallet_spfxm', 'fee': '0.5', 'note': '기존 관리 업체'},
         'V99': {'wallet': 'TRX_Wallet_V99', 'fee': '1.5', 'note': 'VVIP 전용'}
     }
+
+def load_data():
+    defaults = get_default_list()
     if not os.path.exists(DB_FILE):
-        save_data(full_list)
-        return full_list
+        save_data(defaults)
+        return defaults
     try:
         with open(DB_FILE, "r", encoding="utf-8") as f:
             db = json.load(f)
-            # 호환성을 위해 note 필드 없는 경우 추가
-            for k in db:
-                if 'note' not in db[k]: db[k]['note'] = ''
+            if len(db) < 5:
+                save_data(defaults)
+                return defaults
             return db
     except:
-        return full_list
+        return defaults
 
 def save_data(data):
     with open(DB_FILE, "w", encoding="utf-8") as f:
@@ -54,14 +57,15 @@ st.markdown("""
     input { color: #f1c40f !important; font-size: 1.1em !important; font-weight: bold !important; }
     .m-header { background-color: #000; color: #ffffff; padding: 10px; border-radius: 4px; text-align: center; margin-bottom: 20px; border: 1px solid #333; font-size: 1.1em; font-weight: bold; }
     .label { color: #5dade2; font-weight: bold; margin-top: 15px; margin-bottom: 5px; }
+    .stExpander p { font-weight: bold !important; font-size: 1.1em !important; color: #ffffff !important; }
     
-    /* 업체명 굵게 */
-    .stExpander p { font-weight: bold !important; font-size: 1.1em !important; }
-    
-    /* 버튼 스타일 및 정렬 */
-    div.stButton > button { width: 100%; height: 40px; font-weight: bold; border-radius: 5px; border: none; }
+    /* 버튼 스타일 및 밀착 정렬 */
+    div.stButton > button { width: 100% !important; height: 40px !important; font-weight: bold !important; border-radius: 5px !important; border: none !important; }
     .btn-save button { background-color: #007bff !important; color: white !important; }
-    .btn-del button { background-color: #dc3545 !important; color: white !important; border: 1px solid #dc3545 !important; }
+    .btn-del button { background-color: #dc3545 !important; color: white !important; }
+    
+    /* 컬럼 간격 최소화 */
+    [data-testid="column"] { padding: 0 5px !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -82,7 +86,7 @@ if st.session_state.page == 'settle':
     m_info = st.session_state.db.get(selected_m)
     
     st.markdown(f'<div class="m-header">{selected_m} 정산 모드</div>', unsafe_allow_html=True)
-    if m_info.get('note'):
+    if m_info and m_info.get('note'):
         st.info(f"📌 비고: {m_info['note']}")
 
     st.markdown('<p class="label">1. 환율 설정</p>', unsafe_allow_html=True)
@@ -118,7 +122,6 @@ if st.session_state.page == 'settle':
 else:
     st.title("⚙️ 머천트 설정 관리")
     
-    # 신규 등록
     with st.form("new_m", clear_on_submit=True):
         st.subheader("➕ 신규 업체 등록")
         col_n1, col_n2 = st.columns(2)
@@ -136,27 +139,25 @@ else:
     st.divider()
     st.subheader("📂 업체 목록 수정")
     
-    # 업체명 변경 로직 포함
     for original_name in sorted(list(st.session_state.db.keys())):
         info = st.session_state.db[original_name]
         with st.expander(f"{original_name}"):
-            new_name = st.text_input("업체명 변경", value=original_name, key=f"nm_{original_name}")
+            new_name = st.text_input("업체명", value=original_name, key=f"nm_{original_name}")
             u_w = st.text_input("지갑 주소", value=info['wallet'], key=f"w_{original_name}")
             u_f = st.text_input("요율 (%)", value=info['fee'], key=f"f_{original_name}")
             u_n = st.text_area("비고", value=info.get('note', ''), key=f"n_{original_name}")
             
-            # 버튼 가깝게 배치
-            c1, c2, c3 = st.columns([1, 1, 2])
+            # 저장/삭제 버튼 한 줄에 밀착 배치
+            c1, c2 = st.columns(2)
             with c1:
                 st.markdown('<div class="btn-save">', unsafe_allow_html=True)
                 if st.button("저장", key=f"s_{original_name}"):
-                    # 이름이 바뀌었으면 기존 키 삭제 후 새 키 생성
                     if new_name != original_name:
                         del st.session_state.db[original_name]
                     st.session_state.db[new_name] = {"wallet": u_w, "fee": u_f, "note": u_n}
                     save_data(st.session_state.db)
-                    st.success("변경 완료!")
-                    st.rerun()
+                    st.success(f"✅ {new_name} 저장 완료!")
+                    # 리런을 바로 하지 않고 메시지를 보여줌
                 st.markdown('</div>', unsafe_allow_html=True)
             with c2:
                 st.markdown('<div class="btn-del">', unsafe_allow_html=True)
