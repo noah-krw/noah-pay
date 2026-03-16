@@ -1,0 +1,10 @@
+{
+    "spfxm": {
+        "wallet": "TRX_Wallet_Example_1",
+        "fee": "0.5"
+    },
+    "V99": {
+        "wallet": "TRX_Wallet_Example_2",
+        "fee": "1.5"
+    }
+}
