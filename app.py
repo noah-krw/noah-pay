@@ -7,7 +7,7 @@ st.title("💰 Noah 정산 시스템 v1.1")
 # 1. 환율 및 요율 설정 섹션
 st.sidebar.header("⚙️ 설정")
 
-# 환율 선택 기능 추가
+# 환율 선택 기능 (4%, 4.5%, 5% 수동 선택)
 rate_choice = st.sidebar.radio(
     "적용 환율 선택",
     ("4% (1.04)", "4.5% (1.045)", "5% (1.05)"),
@@ -22,7 +22,11 @@ elif "4%" in rate_choice:
 else:
     multiplier = 1.05
 
-st.sidebar.info(f"현재 적용 배수: {multiplier}")
+# 빗썸 기준 시세 입력창
+base_rate = st.sidebar.number_input("현재 빗썸 시세 (KRW)", min_value=1000, value=1450, step=1)
+final_rate = base_rate * multiplier
+
+st.sidebar.info(f"최종 적용 환율: {int(-(-final_rate // 1)):,} 원")
 
 # 2. 정산 입력 섹션
 col1, col2 = st.columns(2)
@@ -42,10 +46,6 @@ with col1:
 
 with col2:
     st.subheader("📝 settlement 결과")
-    
-    # 환율 계산 (임의 시세 1400원 가정, 필요시 입력창 추가 가능)
-    base_rate = 1400 
-    final_rate = base_rate * multiplier
     
     raw_krw = amount_usd * final_rate
     
