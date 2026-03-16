@@ -4,7 +4,7 @@ import json
 import os
 import re
 
-# [정산 매크로 v76 - Noah 전용: 벨런스 경고 매크로 추가 버전]
+# [정산 매크로 v76 - Noah 전용: 알림 고정 및 버튼 밀착 안정화 버전]
 
 DB_FILE = "merchants.json"
 
@@ -54,10 +54,15 @@ st.markdown("""
     input { color: #f1c40f !important; font-size: 1.1em !important; font-weight: bold !important; }
     .m-header { background-color: #000; color: #ffffff; padding: 10px; border-radius: 4px; text-align: center; margin-bottom: 20px; border: 1px solid #333; font-size: 1.1em; font-weight: bold; }
     .label { color: #5dade2; font-weight: bold; margin-top: 15px; margin-bottom: 5px; }
-    .stExpander p { font-weight: bold !important; font-size: 1.1em !important; }
+    .stExpander p { font-weight: bold !important; color: #ffffff !important; }
+    
+    /* 버튼 스타일 및 강제 가로 배치 */
     div.stButton > button { width: 100% !important; height: 40px !important; font-weight: bold !important; border-radius: 5px !important; }
     .btn-save button { background-color: #007bff !important; color: white !important; }
     .btn-del button { background-color: #dc3545 !important; color: white !important; }
+    
+    /* 컬럼 간격 조정 */
+    [data-testid="column"] { padding: 0 2px !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -75,8 +80,9 @@ if st.session_state.page == 'settle':
     selected_m = st.selectbox("업체 선택", sorted_keys)
     m_info = st.session_state.db.get(selected_m)
     st.markdown(f'<div class="m-header">{selected_m} 정산 모드</div>', unsafe_allow_html=True)
+    if m_info and m_info.get('note'): st.info(f"📌 비고: {m_info['note']}")
 
-    # 1. 환율 설정
+    # 환율/정산/잔액 로직 (생략 없이 유지)
     st.markdown('<p class="label">1. 환율 설정</p>', unsafe_allow_html=True)
     multiplier = st.radio("배수", [1.04, 1.045, 1.05], format_func=lambda x: f"{(x-1)*100:.1f}%", index=1, horizontal=True)
     c1, c2 = st.columns(2)
@@ -85,55 +91,62 @@ if st.session_state.page == 'settle':
     current_rate = s_val if s_val > 0 else math.ceil(b_val * multiplier)
     st.code(f"1 USDT = {current_rate:,} KRW", language="text")
 
-    # 2. 정산 문구
     st.markdown('<p class="label">2. 정산 문구</p>', unsafe_allow_html=True)
     amount = extract_int(st.text_input("정산 금액", value="0"))
     if amount > 0:
         usdt_val = round(amount / current_rate, 2)
         st.code(f"- {selected_m} settlement amount : {amount:,} krw\n- exchange to usdt : {usdt_val:,.2f} usdt\n- 1usdt = {current_rate:,} krw\n\n{m_info['wallet']}\n\nPlease confirm the address and calculation.\nOnce approved, we will proceed immediately", language="text")
 
-    # 3. 최종 잔액 보고
     st.markdown('<p class="label">3. 최종 잔액 보고</p>', unsafe_allow_html=True)
     balance = extract_int(st.text_input("잔액 입력", value="0"))
     if balance > 0 and amount > 0:
         st.code(f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {amount:,} krw\nexchange to usdt : {math.ceil(amount / current_rate):,} usdt\n1usdt = {current_rate:,} krw\n\n- {selected_m} : {balance:,} krw", language="text")
 
-    st.divider()
-    
-    # 4. 벨런스 경고 (Noah 요청 사항)
     st.markdown('<p class="label" style="color:#e74c3c;">🚨 벨런스 경고 및 정산 요청</p>', unsafe_allow_html=True)
     warn_bal = extract_int(st.text_input("현재 벨런스 입력", value="0", key="warn_bal"))
     if warn_bal > 0:
-        warn_msg = (
-            f"Hello, Team\n"
-            f"Currently, the balance of the merchants is too high.\n"
-            f"To ensure a safe balance, please proceed with USDT settlement.\n"
-            f"Thank you\n\n"
-            f"Balance update\n\n"
-            f"- {selected_m} : {warn_bal:,} krw"
-        )
-        st.code(warn_msg, language="text")
+        st.code(f"Hello, Team\nCurrently, the balance of the merchants is too high.\nTo ensure a safe balance, please proceed with USDT settlement.\nThank you\n\nBalance update\n\n- {selected_m} : {warn_bal:,} krw", language="text")
 
 else:
     st.title("⚙️ 머천트 설정 관리")
-    # (업체 관리 코드 동일 - 생략 없이 유지됨)
-    for original_name in sorted(list(st.session_state.db.keys())):
-        info = st.session_state.db[original_name]
-        with st.expander(f"**{original_name}**"):
-            new_name = st.text_input("업체명", value=original_name, key=f"nm_{original_name}")
-            u_w = st.text_input("지갑 주소", value=info['wallet'], key=f"w_{original_name}")
-            u_f = st.text_input("요율", value=info['fee'], key=f"f_{original_name}")
-            u_n = st.text_area("비고", value=info.get('note',''), key=f"n_{original_name}")
+    # 신규 등록 폼
+    with st.form("new_m", clear_on_submit=True):
+        st.subheader("➕ 신규 업체 등록")
+        n_name = st.text_input("업체 이름")
+        n_wallet = st.text_input("지갑 주소")
+        col_f1, col_f2 = st.columns(2)
+        with col_f1: n_fee = st.text_input("요율 (%)", value="0.5")
+        with col_f2: n_note = st.text_input("비고 (특이사항)")
+        if st.form_submit_button("신규 업체 등록 완료"):
+            if n_name and n_wallet:
+                st.session_state.db[n_name] = {"wallet": n_wallet, "fee": n_fee, "note": n_note}
+                save_data(st.session_state.db); st.success(f"✅ {n_name} 등록 성공!"); st.rerun()
+
+    st.divider()
+    st.subheader("📂 업체 목록 수정")
+    for orig_name in sorted(list(st.session_state.db.keys())):
+        info = st.session_state.db[orig_name]
+        with st.expander(f"**{orig_name}**"):
+            new_nm = st.text_input("업체명", value=orig_name, key=f"nm_{orig_name}")
+            u_w = st.text_input("지갑 주소", value=info['wallet'], key=f"w_{orig_name}")
+            u_f = st.text_input("요율", value=info['fee'], key=f"f_{orig_name}")
+            u_n = st.text_area("비고", value=info.get('note',''), key=f"n_{orig_name}")
+            
+            # 버튼 밀착 배치
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown('<div class="btn-save">', unsafe_allow_html=True)
-                if st.button("저장", key=f"s_{original_name}"):
-                    if new_name != original_name: del st.session_state.db[original_name]
-                    st.session_state.db[new_name] = {"wallet": u_w, "fee": u_f, "note": u_n}
-                    save_data(st.session_state.db); st.success(f"✅ {new_name} 저장 완료!"); st.rerun()
+                if st.button("저장", key=f"s_{orig_name}"):
+                    if new_nm != orig_name: del st.session_state.db[orig_name]
+                    st.session_state.db[new_nm] = {"wallet": u_w, "fee": u_f, "note": u_n}
+                    save_data(st.session_state.db)
+                    st.success(f"✅ {new_nm} 저장 완료!")
+                    # rerun을 하지 않고 성공 메시지를 유지
                 st.markdown('</div>', unsafe_allow_html=True)
             with c2:
                 st.markdown('<div class="btn-del">', unsafe_allow_html=True)
-                if st.button("삭제", key=f"d_{original_name}"):
-                    del st.session_state.db[original_name]; save_data(st.session_state.db); st.rerun()
+                if st.button("삭제", key=f"d_{orig_name}"):
+                    del st.session_state.db[orig_name]
+                    save_data(st.session_state.db)
+                    st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
