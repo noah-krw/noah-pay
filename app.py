@@ -3,9 +3,8 @@ import math
 import json
 import os
 import re
-import streamlit.components.v1 as components
 
-# [정산 매크로 v76 - Noah 전용: 복사 버튼 절대 노출 버전]
+# [정산 매크로 v76 - Noah 전용: 버튼 노출 보장 버전]
 
 DB_FILE = "merchants.json"
 
@@ -25,53 +24,15 @@ def extract_int(text):
     num_str = re.sub(r'[^0-9]', '', text)
     return int(num_str) if num_str else 0
 
-# 복사 기능을 위한 개선된 컴포넌트
-def copy_tool(content):
-    # 줄바꿈 처리
-    safe_content = content.replace("\n", "\\n").replace("'", "\\'")
-    html_code = f"""
-        <div style="margin-bottom: 20px;">
-            <button onclick="copyToClipboard()" id="copyBtn" style="
-                width: 100%;
-                background-color: #007bff;
-                color: white;
-                border: none;
-                padding: 12px;
-                border-radius: 5px;
-                cursor: pointer;
-                font-weight: bold;
-                font-size: 16px;
-            ">📋 이 내용 복사하기</button>
-        </div>
-        <script>
-        function copyToClipboard() {{
-            const text = `{safe_content}`;
-            const el = document.createElement('textarea');
-            el.value = text.replace(/\\\\n/g, '\\n');
-            document.body.appendChild(el);
-            el.select();
-            document.execCommand('copy');
-            document.body.removeChild(el);
-            
-            const btn = document.getElementById('copyBtn');
-            btn.innerText = "✅ 복사 완료!";
-            btn.style.backgroundColor = "#28a745";
-            setTimeout(() => {{
-                btn.innerText = "📋 이 내용 복사하기";
-                btn.style.backgroundColor = "#007bff";
-            }}, 2000);
-        }}
-        </script>
-    """
-    components.html(html_code, height=70)
-
 st.set_page_config(page_title="정산 매크로 v76", layout="centered")
 
+# CSS: 디자인 유지
 st.markdown("""
     <style>
     html, body, [data-testid="stAppViewContainer"] { background-color: #1e1e1e !important; color: #e0e0e0 !important; }
     div[data-baseweb="input"] { background-color: #2d2d2d !important; border: 1px solid #444 !important; }
     input { color: #f1c40f !important; font-size: 1.1em !important; font-weight: bold !important; }
+    .stButton>button { width: 100%; border-radius: 4px; background-color: #34495e; color: white; border: none; font-weight: bold; height: 45px; margin-bottom: 10px; }
     .m-header { background-color: #000; color: #ffffff; padding: 10px; border-radius: 4px; text-align: center; margin-bottom: 20px; border: 1px solid #333; font-size: 1.1em; font-weight: bold; }
     .label { color: #5dade2; font-weight: bold; margin-top: 15px; margin-bottom: 5px; }
     .rate-box { background-color: #2d2d2d; padding: 8px; border-radius: 5px; border-left: 5px solid #f1c40f; margin-bottom: 10px; text-align: center; }
@@ -93,6 +54,7 @@ if st.session_state.page == 'settle':
     m_info = db.get(selected_m, {"wallet": "-", "fee": "0.5"})
     st.markdown(f'<div class="m-header">{selected_m} 정산 모드</div>', unsafe_allow_html=True)
 
+    # 1. 환율 설정
     st.markdown('<p class="label">1. 환율 설정</p>', unsafe_allow_html=True)
     rate_choice = st.radio("배수", ["4%", "4.5%", "5%"], index=1, horizontal=True, label_visibility="collapsed")
     multiplier = 1.04 if rate_choice == "4%" else 1.045 if rate_choice == "4.5%" else 1.05
@@ -104,31 +66,36 @@ if st.session_state.page == 'settle':
     current_rate = s_val if s_val > 0 else math.ceil(b_val * multiplier)
     st.markdown(f'<div class="rate-box"><span class="rate-text">1 USDT = {current_rate:,} KRW</span></div>', unsafe_allow_html=True)
 
+    # 2. 정산 문구
     st.markdown('<p class="label">2. 정산 금액 (KRW)</p>', unsafe_allow_html=True)
     amount = extract_int(st.text_input("정산 금액", value="0", key="amt_in"))
     if amount > 0:
         usdt_val = round(amount / current_rate, 2)
         confirm_msg = f"- {selected_m} settlement amount : {amount:,} krw\n- exchange to usdt : {usdt_val:,.2f} usdt\n- 1usdt = {current_rate:,} krw\n\n{m_info['wallet']}"
         st.code(confirm_msg, language="text")
-        copy_tool(confirm_msg)
+        if st.button("📋 정산 문구 복사 준비"):
+            st.info("위의 검은 박스 오른쪽 상단 아이콘을 누르거나, 아래 텍스트를 드래그하세요.")
+            st.text_area("Copy Label", value=confirm_msg, height=100)
 
+    # 3. 최종 잔액 보고
     st.markdown('<p class="label">3. 최종 잔액 보고</p>', unsafe_allow_html=True)
     balance = extract_int(st.text_input("잔액 입력", value="0", key="bal_in"))
     if balance > 0 and amount > 0:
         final_msg = f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {amount:,} krw\nexchange to usdt : {math.ceil(amount / current_rate):,} usdt\n1usdt = {current_rate:,} krw\n\n- {selected_m} : {balance:,} krw"
         st.code(final_msg, language="text")
-        copy_tool(final_msg)
+        if st.button("📋 잔액 보고 복사 준비"):
+            st.text_area("Copy Label", value=final_msg, height=120)
 
+    # 4. 게이트 수수료
     st.markdown('<p class="label">4. 게이트 수수료</p>', unsafe_allow_html=True)
-    if st.button("수수료 멘트 생성"):
+    if st.button("📋 수수료 멘트 생성 및 복사"):
         if amount > 0:
             f_val = float(m_info.get('fee', 0.5))
             fee_krw = int(amount * f_val / 100)
             fee_msg = f"드래곤 테더정산 수수료 {f_val}% {selected_m} / {amount:,} / {fee_krw:,}"
             st.code(fee_msg, language="text")
-            copy_tool(fee_msg)
+            st.text_area("Copy Label", value=fee_msg, height=50)
 else:
-    # 관리 페이지는 그대로
     st.title("⚙️ 머천트 설정 관리")
     for name, info in list(db.items()):
         with st.expander(f"🏢 {name} 수정/삭제"):
