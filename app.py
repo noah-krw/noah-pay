@@ -4,12 +4,11 @@ import json
 import os
 import re
 
-# [정산 매크로 v79 - Noah 전용: 데이터 보존 및 스텝4 복구 버전]
+# [정산 매크로 v80 - Noah 전용: 마크업 초간소화 및 자동 수수료 계산 버전]
 
 DB_FILE = "merchants.json"
 
 def get_default_list():
-    """스크린샷 및 이전 기록 기반 전체 머천트 리스트"""
     return {
         'dr188': {'wallet': 'TBMTb9TFFXDuqhjLKLp9Yo26QHRnnG6jPN', 'fee': '0.5', 'note': '드래곤 메인'},
         'drgtssen': {'wallet': 'TRX_Wallet_drgtssen', 'fee': '0.5', 'note': ''},
@@ -22,7 +21,7 @@ def get_default_list():
         'drolymp': {'wallet': 'TRX_Wallet_drolymp', 'fee': '0.5', 'note': ''},
         'drbetkore': {'wallet': 'TRX_Wallet_drbetkore', 'fee': '0.5', 'note': ''},
         'drTapTap': {'wallet': 'TRX_Wallet_drTapTap', 'fee': '0.5', 'note': ''},
-        'spfxm': {'wallet': 'TWbFbzW5GRkAkVrY4fLuXhNA576DCkoGbh', 'fee': '0.5', 'note': '기존 관리 업체 (지갑주소 업데이트 완료)'},
+        'spfxm': {'wallet': 'TWbFbzW5GRkAkVrY4fLuXhNA576DCkoGbh', 'fee': '0.5', 'note': '기존 관리 업체'},
         'V99': {'wallet': 'TRX_Wallet_V99', 'fee': '1.5', 'note': 'VVIP 전용'}
     }
 
@@ -34,7 +33,6 @@ def load_data():
     try:
         with open(DB_FILE, "r", encoding="utf-8") as f:
             db = json.load(f)
-            # 파일 데이터가 비어있거나 너무 적으면 기본값 로드
             return db if len(db) >= 3 else defaults
     except:
         return defaults
@@ -47,7 +45,7 @@ def extract_int(text):
     num_str = re.sub(r'[^0-9]', '', text)
     return int(num_str) if num_str else 0
 
-st.set_page_config(page_title="정산 매크로 v79", layout="centered")
+st.set_page_config(page_title="정산 매크로 v80", layout="centered")
 
 st.markdown("""
     <style>
@@ -57,8 +55,6 @@ st.markdown("""
     .m-header { background-color: #000; color: #ffffff; padding: 10px; border-radius: 4px; text-align: center; margin-bottom: 20px; border: 1px solid #333; font-size: 1.1em; font-weight: bold; }
     .label { color: #5dade2; font-weight: bold; margin-top: 15px; margin-bottom: 5px; }
     .stButton > button { width: 100% !important; height: 40px !important; font-weight: bold !important; border-radius: 5px !important; }
-    .btn-save button { background-color: #007bff !important; color: white !important; }
-    .btn-del button { background-color: #dc3545 !important; color: white !important; }
     [data-testid="column"] { padding: 0 2px !important; }
     </style>
     """, unsafe_allow_html=True)
@@ -94,47 +90,46 @@ if st.session_state.page == 'settle':
     current_rate = s_val if s_val > 0 else math.ceil(b_val * multiplier)
     st.code(f"1 USDT = {current_rate:,} KRW", language="text")
 
-    # 2. 정산 문구
-    st.markdown('<p class="label">2. 정산 요청 (USDT 변환)</p>', unsafe_allow_html=True)
+    # 2. 정산 및 마크업 생성
+    st.markdown('<p class="label">2. 정산 금액 및 마크업 복사</p>', unsafe_allow_html=True)
     a_raw = st.text_input("정산 금액", value="0")
     amount = extract_int(a_raw)
-    if amount > 0: st.caption(f"입력 확인: {amount:,} 원")
     
-    usdt_val = 0
-    settle_msg = ""
     if amount > 0:
-        usdt_val = round(amount / current_rate, 2)
-        settle_msg = f"- {selected_m} settlement amount : {amount:,} krw\n- exchange to usdt : {usdt_val:,.2f} usdt\n- 1usdt = {current_rate:,} krw\n\n{m_info['wallet']}\n\nPlease confirm the address and calculation.\nOnce approved, we will proceed immediately"
-        st.code(settle_msg, language="text")
+        st.caption(f"입력 확인: {amount:,} 원")
+        
+        # 수수료 계산 (올림 처리)
+        fee_rate = float(m_info.get('fee', 0.5))
+        calc_fee = math.ceil(amount * (fee_rate / 100))
+        
+        # 드래곤 업체 여부 확인
+        dragon_list = ['dr188', 'drgtssen', 'Dpinnacle', 'drSpinmama', 'drbetssen', 'NextbetM/G', 'DafabetM/G', 'drgtkore', 'drolymp', 'drbetkore', 'drTapTap']
+        prefix = "드래곤 테더정산" if selected_m in dragon_list else "일반 테더정산"
+        
+        # 초간결 마크업 생성
+        short_markup = f"{prefix} 수수료 {fee_rate}% {selected_m} / {amount:,} / {calc_fee:,}"
+        
+        st.write("아래 한 줄을 복사해서 보고하세요:")
+        st.code(short_markup, language="text")
 
-    # 3. 최종 잔액 보고
-    st.markdown('<p class="label">3. 최종 잔액 보고</p>', unsafe_allow_html=True)
-    bal_raw = st.text_input("잔액 입력", value="0")
-    balance = extract_int(bal_raw)
-    if balance > 0: st.caption(f"입력 확인: {balance:,} 원")
-    
-    balance_msg = ""
-    if balance > 0 and amount > 0:
-        balance_msg = f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {amount:,} krw\nexchange to usdt : {math.ceil(amount / current_rate):,} usdt\n1usdt = {current_rate:,} krw\n\n- {selected_m} : {balance:,} krw"
-        st.code(balance_msg, language="text")
+    # 3. 상세 내역 (필요시 참고용)
+    with st.expander("상세 계산 내역 확인"):
+        if amount > 0:
+            usdt_val = round(amount / current_rate, 2)
+            st.write(f"테더 변환: {usdt_val:,.2f} USDT")
+            st.write(f"지갑 주소: {m_info['wallet']}")
 
-    # 4. 마크업 복사
-    st.markdown('<p class="label" style="color:#f1c40f;">4. 텔레그램 마크업 복사</p>', unsafe_allow_html=True)
-    if amount > 0 and balance > 0:
-        full_markup = f"**[Settlement Report]**\n\n{settle_msg}\n\n---\n\n{balance_msg}"
-        st.code(full_markup, language="markdown")
-
-    # 벨런스 경고
-    st.markdown('<p class="label" style="color:#e74c3c;">🚨 벨런스 경고 전용</p>', unsafe_allow_html=True)
+    # 4. 벨런스 경고
+    st.markdown('<p class="label" style="color:#e74c3c;">🚨 벨런스 경고</p>', unsafe_allow_html=True)
     warn_raw = st.text_input("경고용 벨런스 입력", value="0", key="warn_bal")
     warn_bal = extract_int(warn_raw)
     if warn_bal > 0:
-        st.caption(f"입력 확인: {warn_bal:,} 원")
-        st.code(f"Hello, Team\nCurrently, the balance of the merchants is too high.\nTo ensure a safe balance, please proceed with USDT settlement.\nThank you\n\nBalance update\n\n- {selected_m} : {warn_bal:,} krw", language="text")
+        st.code(f"Balance update - {selected_m} : {warn_bal:,} krw", language="text")
 
 else:
-    # 업체 설정 화면 (데이터 보호를 위해 기존 구조 엄격 유지)
+    # 업체 설정 화면 (수정 없음)
     st.title("⚙️ 머천트 설정 관리")
+    # ... (기존 설정 코드 유지) ...
     with st.form("new_m", clear_on_submit=True):
         st.subheader("➕ 신규 업체 등록")
         n_name = st.text_input("업체 이름")
@@ -158,17 +153,13 @@ else:
             u_n = st.text_area("비고", value=info.get('note',''), key=f"n_{orig_name}")
             c1, c2 = st.columns(2)
             with c1:
-                st.markdown('<div class="btn-save">', unsafe_allow_html=True)
                 if st.button("저장", key=f"s_{orig_name}"):
                     if new_nm != orig_name: del st.session_state.db[orig_name]
                     st.session_state.db[new_nm] = {"wallet": u_w, "fee": u_f, "note": u_n}
                     save_data(st.session_state.db)
                     st.success(f"✅ {new_nm} 저장 완료!")
-                st.markdown('</div>', unsafe_allow_html=True)
             with c2:
-                st.markdown('<div class="btn-del">', unsafe_allow_html=True)
                 if st.button("삭제", key=f"d_{orig_name}"):
                     del st.session_state.db[orig_name]
                     save_data(st.session_state.db)
                     st.rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
