@@ -4,12 +4,11 @@ import json
 import os
 import re
 
-# [정산 매크로 v83 - Noah 전용: spfxm 기본값 설정 및 드래곤 분류 업데이트]
+# [정산 매크로 v84 - Noah 전용: 배수 기본값 4.0% 변경 및 spfxm 드래곤 분류]
 
 DB_FILE = "merchants.json"
 
 def get_default_list():
-    """스크린샷 및 실장님 지시 기반 전체 머천트 리스트"""
     return {
         'dr188': {'wallet': 'TBMTb9TFFXDuqhjLKLp9Yo26QHRnnG6jPN', 'fee': '0.5', 'note': '드래곤 메인'},
         'drgtssen': {'wallet': 'TRX_Wallet_drgtssen', 'fee': '0.5', 'note': ''},
@@ -22,7 +21,7 @@ def get_default_list():
         'drolymp': {'wallet': 'TRX_Wallet_drolymp', 'fee': '0.5', 'note': ''},
         'drbetkore': {'wallet': 'TRX_Wallet_drbetkore', 'fee': '0.5', 'note': ''},
         'drTapTap': {'wallet': 'TRX_Wallet_drTapTap', 'fee': '0.5', 'note': ''},
-        'spfxm': {'wallet': 'TWbFbzW5GRkAkVrY4fLuXhNA576DCkoGbh', 'fee': '4', 'note': '가장 많이 쓰는 업체 (드래곤 분류)'},
+        'spfxm': {'wallet': 'TWbFbzW5GRkAkVrY4fLuXhNA576DCkoGbh', 'fee': '4', 'note': '가장 많이 쓰는 업체'},
         'V99': {'wallet': 'TRX_Wallet_V99', 'fee': '1.5', 'note': 'VVIP 전용'}
     }
 
@@ -46,7 +45,7 @@ def extract_int(text):
     num_str = re.sub(r'[^0-9]', '', text)
     return int(num_str) if num_str else 0
 
-st.set_page_config(page_title="정산 매크로 v83", layout="centered")
+st.set_page_config(page_title="정산 매크로 v84", layout="centered")
 
 st.markdown("""
     <style>
@@ -56,8 +55,6 @@ st.markdown("""
     .m-header { background-color: #000; color: #ffffff; padding: 10px; border-radius: 4px; text-align: center; margin-bottom: 20px; border: 1px solid #333; font-size: 1.1em; font-weight: bold; }
     .label { color: #5dade2; font-weight: bold; margin-top: 15px; margin-bottom: 5px; }
     .stButton > button { width: 100% !important; height: 40px !important; font-weight: bold !important; border-radius: 5px !important; }
-    .btn-save button { background-color: #007bff !important; color: white !important; }
-    .btn-del button { background-color: #dc3545 !important; color: white !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -72,25 +69,21 @@ with st.sidebar:
 if st.session_state.page == 'settle':
     st.title("🚀 실시간 정산 작업")
     sorted_keys = sorted(list(st.session_state.db.keys()))
-    
-    # spfxm을 기본 선택값으로 설정
     default_index = sorted_keys.index('spfxm') if 'spfxm' in sorted_keys else 0
     selected_m = st.selectbox("업체 선택", sorted_keys, index=default_index)
-    
     m_info = st.session_state.db.get(selected_m)
     st.markdown(f'<div class="m-header">{selected_m} 정산 모드</div>', unsafe_allow_html=True)
     
     # 1. 환율 설정
     st.markdown('<p class="label">1. 환율 설정</p>', unsafe_allow_html=True)
-    multiplier = st.radio("배수", [1.04, 1.045, 1.05], format_func=lambda x: f"{(x-1)*100:.1f}%", index=1, horizontal=True)
+    # 인덱스를 0으로 변경하여 4.0%가 기본 선택되게 함
+    multiplier = st.radio("배수", [1.04, 1.045, 1.05], format_func=lambda x: f"{(x-1)*100:.1f}%", index=0, horizontal=True)
     c1, c2 = st.columns(2)
     with c1: 
-        b_raw = st.text_input("빗썸 시세", value="0")
-        b_val = extract_int(b_raw)
+        b_val = extract_int(st.text_input("빗썸 시세", value="0"))
         if b_val > 0: st.caption(f"금액 확인: {b_val:,} 원")
     with c2: 
-        s_raw = st.text_input("수동 환율", value="0")
-        s_val = extract_int(s_raw)
+        s_val = extract_int(st.text_input("수동 환율", value="0"))
         if s_val > 0: st.caption(f"금액 확인: {s_val:,} 원")
         
     current_rate = s_val if s_val > 0 else math.ceil(b_val * multiplier)
@@ -98,32 +91,28 @@ if st.session_state.page == 'settle':
 
     # 2. 정산 요청
     st.markdown('<p class="label">2. 정산 요청 (USDT 변환)</p>', unsafe_allow_html=True)
-    a_raw = st.text_input("정산 금액", value="0")
-    amount = extract_int(a_raw)
-    if amount > 0: st.caption(f"금액 확인: {amount:,} 원")
-    
+    amount = extract_int(st.text_input("정산 금액", value="0"))
     if amount > 0:
+        st.caption(f"금액 확인: {amount:,} 원")
         usdt_val = round(amount / current_rate, 2)
         settle_msg = f"- {selected_m} settlement amount : {amount:,} krw\n- exchange to usdt : {usdt_val:,.2f} usdt\n- 1usdt = {current_rate:,} krw\n\n{m_info['wallet']}\n\nPlease confirm the address and calculation.\nOnce approved, we will proceed immediately"
         st.code(settle_msg, language="text")
 
     # 3. 최종 잔액 보고
     st.markdown('<p class="label">3. 최종 잔액 보고</p>', unsafe_allow_html=True)
-    bal_raw = st.text_input("최종 잔액 입력", value="0")
-    balance = extract_int(bal_raw)
-    if balance > 0: st.caption(f"금액 확인: {balance:,} 원")
-    
-    if balance > 0 and amount > 0:
+    balance = extract_int(st.text_input("잔액 입력", value="0"))
+    if balance > 0:
+        st.caption(f"금액 확인: {balance:,} 원")
         balance_msg = f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {amount:,} krw\nexchange to usdt : {math.ceil(amount / current_rate):,} usdt\n1usdt = {current_rate:,} krw\n\n- {selected_m} : {balance:,} krw"
         st.code(balance_msg, language="text")
 
-    # 4. 수수료 보고용 마크업
-    st.markdown('<p class="label" style="color:#f1c40f;">4. 수수료 보고용 원라인 마크업</p>', unsafe_allow_html=True)
+    # 4. 수수료 마크업
+    st.markdown('<p class="label" style="color:#f1c40f;">4. 수수료 보고용 마크업</p>', unsafe_allow_html=True)
     if st.button("원라인 마크업 생성"):
         if amount > 0:
             fee_rate = float(m_info.get('fee', 0.5))
             calc_fee = math.ceil(amount * (fee_rate / 100))
-            # spfxm을 드래곤 리스트에 포함
+            # spfxm을 드래곤 리스트에 추가
             dragon_list = ['dr188', 'drgtssen', 'Dpinnacle', 'drSpinmama', 'drbetssen', 'NextbetM/G', 'DafabetM/G', 'drgtkore', 'drolymp', 'drbetkore', 'drTapTap', 'spfxm']
             prefix = "드래곤 테더정산" if selected_m in dragon_list else "일반 테더정산"
             short_markup = f"{prefix} 수수료 {fee_rate}% {selected_m} / {amount:,} / {calc_fee:,}"
@@ -132,8 +121,8 @@ if st.session_state.page == 'settle':
             st.warning("정산 금액을 먼저 입력하세요.")
 
     # 5. 벨런스 경고
-    st.markdown('<p class="label" style="color:#e74c3c;">5. 벨런스 경고 전용 (높은 잔액 알림)</p>', unsafe_allow_html=True)
-    warn_raw = st.text_input("경고용 벨런스 금액 입력", value="0", key="warn_bal_input")
+    st.markdown('<p class="label" style="color:#e74c3c;">5. 벨런스 경고 전용</p>', unsafe_allow_html=True)
+    warn_raw = st.text_input("경고용 벨런스 입력", value="0", key="warn_bal_input")
     warn_bal = extract_int(warn_raw)
     if warn_bal > 0:
         st.caption(f"금액 확인: {warn_bal:,} 원")
@@ -141,6 +130,7 @@ if st.session_state.page == 'settle':
         st.code(warn_msg, language="text")
 
 else:
+    # 설정 화면 (데이터 보호)
     st.title("⚙️ 머천트 설정 관리")
     with st.form("new_m", clear_on_submit=True):
         st.subheader("➕ 신규 업체 등록")
