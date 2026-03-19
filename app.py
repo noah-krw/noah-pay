@@ -4,12 +4,12 @@ import json
 import os
 import re
 
-# [정산 매크로 v82 - Noah 전용: 모든 기능 통합 및 데이터 보호 최종판]
+# [정산 매크로 v83 - Noah 전용: spfxm 기본값 설정 및 드래곤 분류 업데이트]
 
 DB_FILE = "merchants.json"
 
 def get_default_list():
-    """스크린샷 및 이전 기록 기반 전체 머천트 리스트 (데이터 유실 방지)"""
+    """스크린샷 및 실장님 지시 기반 전체 머천트 리스트"""
     return {
         'dr188': {'wallet': 'TBMTb9TFFXDuqhjLKLp9Yo26QHRnnG6jPN', 'fee': '0.5', 'note': '드래곤 메인'},
         'drgtssen': {'wallet': 'TRX_Wallet_drgtssen', 'fee': '0.5', 'note': ''},
@@ -17,12 +17,12 @@ def get_default_list():
         'drSpinmama': {'wallet': 'TRX_Wallet_drSpinmama', 'fee': '0.5', 'note': ''},
         'drbetssen': {'wallet': 'TRX_Wallet_drbetssen', 'fee': '0.5', 'note': ''},
         'NextbetM/G': {'wallet': 'TRX_Wallet_Nextbet', 'fee': '0.5', 'note': ''},
-        'DafabetM/G': {'wallet': 'TRX_Wallet_Dafabet', 'fee': '0.5', 'note': ''},
+        'DafabetM/G': {'wallet': 'TRX_Wallet_Dafabet', 'fee': '4.5', 'note': ''},
         'drgtkore': {'wallet': 'TRX_Wallet_drgtkore', 'fee': '0.5', 'note': ''},
         'drolymp': {'wallet': 'TRX_Wallet_drolymp', 'fee': '0.5', 'note': ''},
         'drbetkore': {'wallet': 'TRX_Wallet_drbetkore', 'fee': '0.5', 'note': ''},
         'drTapTap': {'wallet': 'TRX_Wallet_drTapTap', 'fee': '0.5', 'note': ''},
-        'spfxm': {'wallet': 'TWbFbzW5GRkAkVrY4fLuXhNA576DCkoGbh', 'fee': '0.5', 'note': '기존 관리 업체'},
+        'spfxm': {'wallet': 'TWbFbzW5GRkAkVrY4fLuXhNA576DCkoGbh', 'fee': '4', 'note': '가장 많이 쓰는 업체 (드래곤 분류)'},
         'V99': {'wallet': 'TRX_Wallet_V99', 'fee': '1.5', 'note': 'VVIP 전용'}
     }
 
@@ -46,7 +46,7 @@ def extract_int(text):
     num_str = re.sub(r'[^0-9]', '', text)
     return int(num_str) if num_str else 0
 
-st.set_page_config(page_title="정산 매크로 v82", layout="centered")
+st.set_page_config(page_title="정산 매크로 v83", layout="centered")
 
 st.markdown("""
     <style>
@@ -72,7 +72,11 @@ with st.sidebar:
 if st.session_state.page == 'settle':
     st.title("🚀 실시간 정산 작업")
     sorted_keys = sorted(list(st.session_state.db.keys()))
-    selected_m = st.selectbox("업체 선택", sorted_keys)
+    
+    # spfxm을 기본 선택값으로 설정
+    default_index = sorted_keys.index('spfxm') if 'spfxm' in sorted_keys else 0
+    selected_m = st.selectbox("업체 선택", sorted_keys, index=default_index)
+    
     m_info = st.session_state.db.get(selected_m)
     st.markdown(f'<div class="m-header">{selected_m} 정산 모드</div>', unsafe_allow_html=True)
     
@@ -113,20 +117,21 @@ if st.session_state.page == 'settle':
         balance_msg = f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {amount:,} krw\nexchange to usdt : {math.ceil(amount / current_rate):,} usdt\n1usdt = {current_rate:,} krw\n\n- {selected_m} : {balance:,} krw"
         st.code(balance_msg, language="text")
 
-    # 4. 수수료 보고용 마크업 (선택적 출력)
+    # 4. 수수료 보고용 마크업
     st.markdown('<p class="label" style="color:#f1c40f;">4. 수수료 보고용 원라인 마크업</p>', unsafe_allow_html=True)
     if st.button("원라인 마크업 생성"):
         if amount > 0:
             fee_rate = float(m_info.get('fee', 0.5))
             calc_fee = math.ceil(amount * (fee_rate / 100))
-            dragon_list = ['dr188', 'drgtssen', 'Dpinnacle', 'drSpinmama', 'drbetssen', 'NextbetM/G', 'DafabetM/G', 'drgtkore', 'drolymp', 'drbetkore', 'drTapTap']
+            # spfxm을 드래곤 리스트에 포함
+            dragon_list = ['dr188', 'drgtssen', 'Dpinnacle', 'drSpinmama', 'drbetssen', 'NextbetM/G', 'DafabetM/G', 'drgtkore', 'drolymp', 'drbetkore', 'drTapTap', 'spfxm']
             prefix = "드래곤 테더정산" if selected_m in dragon_list else "일반 테더정산"
             short_markup = f"{prefix} 수수료 {fee_rate}% {selected_m} / {amount:,} / {calc_fee:,}"
             st.code(short_markup, language="text")
         else:
             st.warning("정산 금액을 먼저 입력하세요.")
 
-    # 5. 벨런스 경고 (누락 복구)
+    # 5. 벨런스 경고
     st.markdown('<p class="label" style="color:#e74c3c;">5. 벨런스 경고 전용 (높은 잔액 알림)</p>', unsafe_allow_html=True)
     warn_raw = st.text_input("경고용 벨런스 금액 입력", value="0", key="warn_bal_input")
     warn_bal = extract_int(warn_raw)
@@ -136,7 +141,6 @@ if st.session_state.page == 'settle':
         st.code(warn_msg, language="text")
 
 else:
-    # 업체 설정 화면 (기존 데이터 완벽 보존)
     st.title("⚙️ 머천트 설정 관리")
     with st.form("new_m", clear_on_submit=True):
         st.subheader("➕ 신규 업체 등록")
@@ -161,7 +165,6 @@ else:
             u_n = st.text_area("비고", value=info.get('note',''), key=f"n_{orig_name}")
             c1, c2 = st.columns(2)
             with c1:
-                st.session_state.setdefault(f"saved_{orig_name}", False)
                 if st.button("저장", key=f"s_{orig_name}"):
                     if new_nm != orig_name: del st.session_state.db[orig_name]
                     st.session_state.db[new_nm] = {"wallet": u_w, "fee": u_f, "note": u_n}
