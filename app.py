@@ -7,7 +7,7 @@ import os
 import re
 
 # ============================================================
-# 정산 매크로 v89.1 - Noah 전용 (입력 버그 완전 해결본)
+# 정산 매크로 v89.2 - Noah 전용 (안정성 최우선 / 군더더기 제거)
 # ============================================================
 
 DB_FILE = "merchants.json"
@@ -81,7 +81,7 @@ def copy_box(text, color_type="blue"):
     """
     components.html(html_code, height=height)
 
-st.set_page_config(page_title="정산 매크로 v89.1", layout="centered")
+st.set_page_config(page_title="정산 매크로 v89.2", layout="centered")
 
 st.markdown("""
 <style>
@@ -89,7 +89,6 @@ st.markdown("""
     div[data-baseweb="input"] { background-color: #ffffff !important; border-radius: 6px !important; }
     input { color: #000000 !important; font-weight: bold !important; font-family: monospace !important; font-size: 1.1em !important; }
     .label-header { color: #4a90d9; font-weight: bold; font-size: 1.25em; border-bottom: 2px solid #1e2d45; padding-bottom: 8px; margin-top: 35px; margin-bottom: 15px; text-transform: uppercase; }
-    .val-check { color: #f1c40f; font-size: 0.85em; font-family: monospace; margin-top: -15px; margin-bottom: 10px; font-weight: bold; }
     .payout-rate-box { color: #5dade2; font-size: 1.1em; font-weight: bold; margin-top: 10px; font-family: monospace; }
 </style>
 """, unsafe_allow_html=True)
@@ -120,23 +119,15 @@ if st.session_state.page == 'settle':
     st.markdown('<div class="label-header">01. 환율 설정</div>', unsafe_allow_html=True)
     multiplier = st.radio("적용 배수", [1.04, 1.045, 1.05], format_func=lambda x: f"{(x-1)*100:.1f}%", index=0, horizontal=True)
     c1, c2 = st.columns(2)
-    with c1: 
-        b_val_raw = st.text_input("빗썸 시세 (숫자만)", key="b_val", value="0")
-        st.markdown(f'<div class="val-check">확인: {fmt(extract_int(b_val_raw))}</div>', unsafe_allow_html=True)
-    with c2: 
-        s_val_raw = st.text_input("수동 환율 (숫자만)", key="s_val", value="0")
-        st.markdown(f'<div class="val-check">확인: {fmt(extract_int(s_val_raw))}</div>', unsafe_allow_html=True)
+    with c1: b_val = extract_int(st.text_input("빗썸 시세", key="b_val", value="0"))
+    with c2: s_val = extract_int(st.text_input("수동 환율", key="s_val", value="0"))
     
-    b_val = extract_int(b_val_raw)
-    s_val = extract_int(s_val_raw)
     current_rate = s_val if s_val > 0 else math.ceil(b_val * multiplier)
     if current_rate > 0: copy_box(f"1 USDT = {fmt(current_rate)} KRW", "blue")
 
     # 02. 정산 요청
     st.markdown('<div class="label-header">02. 정산 요청</div>', unsafe_allow_html=True)
-    amount_raw = st.text_input("정산 금액 (KRW)", key="amt_in")
-    amount = extract_int(amount_raw)
-    st.markdown(f'<div class="val-check">입력금액: {fmt(amount)} 원</div>', unsafe_allow_html=True)
+    amount = extract_int(st.text_input("정산 금액 (KRW)", key="amt_in"))
     
     if amount > 0:
         usdt_val = round(amount / current_rate, 2)
@@ -145,10 +136,7 @@ if st.session_state.page == 'settle':
 
     # 03. 최종 잔액 보고
     st.markdown('<div class="label-header">03. 최종 잔액 보고</div>', unsafe_allow_html=True)
-    balance_raw = st.text_input("현재 잔액 입력 (KRW)", key="bal_in")
-    balance = extract_int(balance_raw)
-    st.markdown(f'<div class="val-check">현재잔액: {fmt(balance)} 원</div>', unsafe_allow_html=True)
-    
+    balance = extract_int(st.text_input("현재 잔액 입력 (KRW)", key="bal_in"))
     if balance > 0:
         usdt_ceil = math.ceil(amount / current_rate)
         balance_msg = f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {fmt(amount)} krw\nexchange to usdt : {fmt(usdt_ceil)} usdt\n1usdt = {fmt(current_rate)} krw\n\n- {selected_m} : {fmt(balance)} krw"
@@ -156,10 +144,7 @@ if st.session_state.page == 'settle':
 
     # 05. 잔액 경고
     st.markdown('<div class="label-header" style="color:#e74c3c;">05. 잔액 경고</div>', unsafe_allow_html=True)
-    warn_bal_raw = st.text_input("경고용 잔액 입력", key="warn_in")
-    warn_bal = extract_int(warn_bal_raw)
-    st.markdown(f'<div class="val-check">경고잔액: {fmt(warn_bal)} 원</div>', unsafe_allow_html=True)
-    
+    warn_bal = extract_int(st.text_input("경고용 잔액 입력", key="warn_in"))
     if warn_bal > 0:
         warn_msg = f"Hello, Team\nCurrently, the balance of the merchants is too high.\nTo ensure a safe balance, please proceed with USDT settlement.\nThank you\n\nBalance update\n\n- {selected_m} : {fmt(warn_bal)} krw"
         copy_box(warn_msg, "red")
@@ -169,22 +154,13 @@ if st.session_state.page == 'settle':
     st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
     col_left, col_right = st.columns([1, 1.2]) 
     with col_left:
-        tm_rate_raw = st.text_input("탑업 빗썸 시세", key="tm_rate")
-        tm_rate = extract_int(tm_rate_raw)
-        st.markdown(f'<div class="val-check">확인: {fmt(tm_rate)}</div>', unsafe_allow_html=True)
-        
-        ts_rate_raw = st.text_input("탑업 수동 환율", key="ts_rate")
-        ts_rate = extract_int(ts_rate_raw)
-        st.markdown(f'<div class="val-check">확인: {fmt(ts_rate)}</div>', unsafe_allow_html=True)
+        tm_rate = extract_int(st.text_input("탑업 빗썸 시세", key="tm_rate"))
+        ts_rate = extract_int(st.text_input("탑업 수동 환율", key="ts_rate"))
     with col_right:
-        topup_usdt_raw = st.text_input("탑업 USDT 수량", key="t_usdt")
-        topup_usdt = extract_int(topup_usdt_raw)
-        st.markdown(f'<div class="val-check">확인: {fmt(topup_usdt)} USDT</div>', unsafe_allow_html=True)
-        
+        topup_usdt = extract_int(st.text_input("탑업 USDT 수량", key="t_usdt"))
         if ts_rate > 0: final_t_rate = ts_rate
         elif tm_rate > 0: final_t_rate = tm_rate - math.ceil(tm_rate * 0.005)
         else: final_t_rate = 0
-        
         if final_t_rate > 0:
             st.markdown(f'<div class="payout-rate-box">1usdt = {fmt(final_t_rate)} krw >>> 적용 환율</div>', unsafe_allow_html=True)
 
@@ -199,6 +175,7 @@ if st.session_state.page == 'settle':
         copy_box(f"드래곤 테더탑업 수수료 {m_fee_rate}% {selected_m} / {fmt(topup_usdt * base_rate)} / {fmt(total_fee_krw)}", "yellow")
 
 else:
+    # 관리 페이지
     st.title("⚙️ 머천트 설정 관리")
     with st.form("new_m"):
         st.subheader("➕ 신규 업체 등록")
