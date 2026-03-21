@@ -7,26 +7,29 @@ import os
 import re
 
 # ============================================================
-# 정산 매크로 v90.3 - Noah 전용 (보고 멘트 최종 원복 및 누락 방지)
+# 정산 매크로 v90.4 - Noah 전용 (우리지갑 관리 및 탑업 멘트 완결)
 # ============================================================
 
-DB_FILE = "merchants.json"
+DB_FILE = "merchants_v2.json"
 
 def get_default_list():
     return {
-        'spfxm': {'wallet': 'TWbFbzW5GRkAkVrY4fLuXhNA576DCkoGbh', 'fee': '4'},
-        'dr188': {'wallet': 'TBMTb9TFFXDuqhjLKLp9Yo26QHRnnG6jPN', 'fee': '0.5'},
-        'drgtssen': {'wallet': 'TRX_Wallet_drgtssen', 'fee': '0.5'},
-        'Dpinnacle': {'wallet': 'TRX_Wallet_Dpinnacle', 'fee': '0.5'},
-        'drSpinmama': {'wallet': 'TRX_Wallet_drSpinmama', 'fee': '0.5'},
-        'drbetssen': {'wallet': 'TRX_Wallet_drbetssen', 'fee': '0.5'},
-        'NextbetM/G': {'wallet': 'TRX_Wallet_Nextbet', 'fee': '0.5'},
-        'DafabetM/G': {'wallet': 'TRX_Wallet_Dafabet', 'fee': '4.5'},
-        'drgtkore': {'wallet': 'TRX_Wallet_drgtkore', 'fee': '0.5'},
-        'drolymp': {'wallet': 'TRX_Wallet_drolymp', 'fee': '0.5'},
-        'drbetkore': {'wallet': 'TRX_Wallet_drbetkore', 'fee': '0.5'},
-        'drTapTap': {'wallet': 'TRX_Wallet_drTapTap', 'fee': '0.5'},
-        'V99': {'wallet': 'TRX_Wallet_V99', 'fee': '1.5'}
+        'my_wallets': {'tl': 'TDaQt8oASZhVsuaEdpevqCacGKseGKCWhQ', 'ada': ''},
+        'merchants': {
+            'spfxm': {'wallet': 'TWbFbzW5GRkAkVrY4fLuXhNA576DCkoGbh', 'fee': '4'},
+            'dr188': {'wallet': 'TBMTb9TFFXDuqhjLKLp9Yo26QHRnnG6jPN', 'fee': '0.5'},
+            'drgtssen': {'wallet': 'TRX_Wallet_drgtssen', 'fee': '0.5'},
+            'Dpinnacle': {'wallet': 'TRX_Wallet_Dpinnacle', 'fee': '0.5'},
+            'drSpinmama': {'wallet': 'TRX_Wallet_drSpinmama', 'fee': '0.5'},
+            'drbetssen': {'wallet': 'TRX_Wallet_drbetssen', 'fee': '0.5'},
+            'NextbetM/G': {'wallet': 'TRX_Wallet_Nextbet', 'fee': '0.5'},
+            'DafabetM/G': {'wallet': 'TRX_Wallet_Dafabet', 'fee': '4.5'},
+            'drgtkore': {'wallet': 'TRX_Wallet_drgtkore', 'fee': '0.5'},
+            'drolymp': {'wallet': 'TRX_Wallet_drolymp', 'fee': '0.5'},
+            'drbetkore': {'wallet': 'TRX_Wallet_drbetkore', 'fee': '0.5'},
+            'drTapTap': {'wallet': 'TRX_Wallet_drTapTap', 'fee': '0.5'},
+            'V99': {'wallet': 'TRX_Wallet_V99', 'fee': '1.5'}
+        }
     }
 
 def load_data():
@@ -86,7 +89,7 @@ def copy_box(text, color_type="blue", key=None):
         components.html(js_code, height=0)
         st.toast("복사 완료!")
 
-st.set_page_config(page_title="정산 매크로 v90.3", layout="centered")
+st.set_page_config(page_title="정산 매크로 v90.4", layout="centered")
 
 st.markdown("""
 <style>
@@ -107,15 +110,16 @@ with st.sidebar:
     st.divider()
     if st.button("⚠️ 데이터 초기화 (복구)"):
         st.session_state.db = get_default_list()
-        save_data(st.session_state.db)
-        st.rerun()
+        save_data(st.session_state.db); st.rerun()
 
 if st.session_state.page == 'settle':
     st.title("🚀 실시간 정산 작업")
-    sorted_keys = sorted(list(st.session_state.db.keys()))
+    merchants = st.session_state.db.get('merchants', {})
+    sorted_keys = sorted(list(merchants.keys()))
     default_idx = sorted_keys.index('spfxm') if 'spfxm' in sorted_keys else 0
     selected_m = st.selectbox("업체 선택", sorted_keys, index=default_idx)
-    m_info = st.session_state.db[selected_m]
+    m_info = merchants[selected_m]
+    my_wallets = st.session_state.db.get('my_wallets', {'tl': '', 'ada': ''})
     
     st.markdown('<div class="label-header">01. 환율 설정</div>', unsafe_allow_html=True)
     multiplier = st.radio("적용 배수", [1.04, 1.045, 1.05], horizontal=True)
@@ -143,7 +147,6 @@ if st.session_state.page == 'settle':
     m_fee_rate = float(m_info.get('fee', 0.5))
     markup_fee = math.ceil(amount * (m_fee_rate / 100))
     if amount > 0:
-        # 지시하신 형식으로 멘트 고정
         copy_box(f"드래곤 테더정산 수수료 {m_fee_rate}% {selected_m} / {fmt(amount)} / {fmt(markup_fee)}", "yellow", key="markup_res")
 
     st.markdown('<div class="label-header" style="color:#e74c3c;">05. 잔액 경고</div>', unsafe_allow_html=True)
@@ -166,35 +169,49 @@ if st.session_state.page == 'settle':
 
     if topup_usdt > 0 and final_t_rate > 0:
         total_krw = topup_usdt * final_t_rate
-        copy_box(f"top-up\n\nmid : {selected_m}\ntop-up amount : {fmt(topup_usdt)} usdt\nexchange to KRW : {fmt(total_krw)} krw\n1usdt = {fmt(final_t_rate)} krw\n\n{m_info['wallet']}", "green", key="topup_res")
+        topup_msg = f"top-up\n\nmid : {selected_m}\ntop-up amount : {fmt(topup_usdt)} usdt\nexchange to KRW : {fmt(total_krw)} krw\n1usdt = {fmt(final_t_rate)} krw\n\n{my_wallets['tl']}\n\nPlease check the invoice and transfer the USDT to the address provided."
+        copy_box(topup_msg, "green", key="topup_res")
         base_rate = ts_rate if ts_rate > 0 else tm_rate
         t_markup = math.ceil((topup_usdt * base_rate) * (m_fee_rate / 100))
-        # 탑업 멘트도 고정
         copy_box(f"드래곤 테더탑업 수수료 {m_fee_rate}% {selected_m} / {fmt(topup_usdt * base_rate)} / {fmt(t_markup)}", "yellow", key="topup_fee_res")
 
 elif st.session_state.page == 'admin':
-    # 머천트 관리 페이지 생략 (동일함)
-    st.title("⚙️ 머천트 설정 관리")
+    st.title("⚙️ 머천트 및 우리지갑 관리")
+    
+    # [추가] 우리지갑 관리 섹션
+    st.markdown('<div class="label-header">💼 우리지갑 주소 관리</div>', unsafe_allow_html=True)
+    w_db = st.session_state.db.get('my_wallets', {'tl': '', 'ada': ''})
+    with st.form("my_wallet_form"):
+        c1, c2 = st.columns(2)
+        with c1: utl = st.text_input("우리지갑 TL", value=w_db.get('tl', ''))
+        with c2: uada = st.text_input("우리지갑 ADA", value=w_db.get('ada', ''))
+        if st.form_submit_button("우리지갑 주소 저장"):
+            st.session_state.db['my_wallets'] = {'tl': utl, 'ada': uada}
+            save_data(st.session_state.db); st.success("저장되었습니다."); st.rerun()
+
+    st.markdown('<div class="label-header">🏢 머천트 리스트 관리</div>', unsafe_allow_html=True)
     with st.form("new_m"):
+        st.subheader("➕ 신규 업체 등록")
         n_name = st.text_input("업체 이름")
         n_wallet = st.text_input("지갑 주소")
         n_fee = st.text_input("수수료 요율 %", value="0.5")
         if st.form_submit_button("등록"):
             if n_name and n_wallet:
-                st.session_state.db[n_name] = {"wallet": n_wallet, "fee": n_fee}
+                st.session_state.db['merchants'][n_name] = {"wallet": n_wallet, "fee": n_fee}
                 save_data(st.session_state.db); st.rerun()
     st.divider()
-    for name in sorted(st.session_state.db.keys()):
+    merchants = st.session_state.db.get('merchants', {})
+    for name in sorted(merchants.keys()):
         with st.expander(f"📦 {name}"):
-            info = st.session_state.db[name]
+            info = merchants[name]
             u_w = st.text_input("지갑 주소", value=info['wallet'], key=f"w_{name}")
             u_f = st.text_input("요율", value=info['fee'], key=f"f_{name}")
             c1, c2 = st.columns(2)
             with c1:
                 if st.button("저장", key=f"s_{name}"):
-                    st.session_state.db[name] = {"wallet": u_w, "fee": u_f}
+                    st.session_state.db['merchants'][name] = {"wallet": u_w, "fee": u_f}
                     save_data(st.session_state.db); st.rerun()
             with c2:
                 if st.button("삭제", key=f"d_{name}"):
-                    del st.session_state.db[name]
+                    del st.session_state.db['merchants'][name]
                     save_data(st.session_state.db); st.rerun()
