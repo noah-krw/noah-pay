@@ -7,7 +7,7 @@ import os
 import re
 
 # ============================================================
-# 정산 매크로 v90.1 - Noah 전용 (05. 경고 섹션 복구 및 가변 박스)
+# 정산 매크로 v90.2 - Noah 전용 (데이터 초기화 복구 및 가변 박스)
 # ============================================================
 
 DB_FILE = "merchants.json"
@@ -16,6 +16,16 @@ def get_default_list():
     return {
         'spfxm': {'wallet': 'TWbFbzW5GRkAkVrY4fLuXhNA576DCkoGbh', 'fee': '4'},
         'dr188': {'wallet': 'TBMTb9TFFXDuqhjLKLp9Yo26QHRnnG6jPN', 'fee': '0.5'},
+        'drgtssen': {'wallet': 'TRX_Wallet_drgtssen', 'fee': '0.5'},
+        'Dpinnacle': {'wallet': 'TRX_Wallet_Dpinnacle', 'fee': '0.5'},
+        'drSpinmama': {'wallet': 'TRX_Wallet_drSpinmama', 'fee': '0.5'},
+        'drbetssen': {'wallet': 'TRX_Wallet_drbetssen', 'fee': '0.5'},
+        'NextbetM/G': {'wallet': 'TRX_Wallet_Nextbet', 'fee': '0.5'},
+        'DafabetM/G': {'wallet': 'TRX_Wallet_Dafabet', 'fee': '4.5'},
+        'drgtkore': {'wallet': 'TRX_Wallet_drgtkore', 'fee': '0.5'},
+        'drolymp': {'wallet': 'TRX_Wallet_drolymp', 'fee': '0.5'},
+        'drbetkore': {'wallet': 'TRX_Wallet_drbetkore', 'fee': '0.5'},
+        'drTapTap': {'wallet': 'TRX_Wallet_drTapTap', 'fee': '0.5'},
         'V99': {'wallet': 'TRX_Wallet_V99', 'fee': '1.5'}
     }
 
@@ -76,7 +86,7 @@ def copy_box(text, color_type="blue", key=None):
         components.html(js_code, height=0)
         st.toast("복사 완료!")
 
-st.set_page_config(page_title="정산 매크로 v90.1", layout="centered")
+st.set_page_config(page_title="정산 매크로 v90.2", layout="centered")
 
 st.markdown("""
 <style>
@@ -84,7 +94,6 @@ st.markdown("""
     div[data-baseweb="input"] { background-color: #ffffff !important; border-radius: 6px !important; }
     input { color: #d4ac0d !important; -webkit-text-fill-color: #d4ac0d !important; font-weight: bold !important; font-family: monospace !important; font-size: 1.2em !important; }
     .label-header { color: #4a90d9; font-weight: bold; font-size: 1.25em; border-bottom: 2px solid #1e2d45; padding-bottom: 8px; margin-top: 30px; margin-bottom: 10px; text-transform: uppercase; }
-    .payout-rate-box { color: #5dade2; font-size: 1.2em; font-weight: bold; margin-top: 32px; font-family: monospace; text-align: center; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -95,6 +104,13 @@ with st.sidebar:
     st.title("💹 정산 매크로")
     if st.button("🚀 정산 작업"): st.session_state.page = 'settle'; st.rerun()
     if st.button("⚙️ 머천트 관리"): st.session_state.page = 'admin'; st.rerun()
+    st.divider()
+    # 사라졌던 데이터 초기화(복구) 버튼 다시 살렸습니다
+    if st.button("⚠️ 데이터 초기화 (복구)"):
+        st.session_state.db = get_default_list()
+        save_data(st.session_state.db)
+        st.success("데이터가 초기화되었습니다.")
+        st.rerun()
 
 if st.session_state.page == 'settle':
     st.title("🚀 실시간 정산 작업")
@@ -135,7 +151,7 @@ if st.session_state.page == 'settle':
     if amount > 0:
         copy_box(f"마크업 수수료 {m_fee_rate}% {selected_m} / {fmt(amount)} / {fmt(markup_fee)}", "yellow", key="markup_res")
 
-    # 05. 잔액 경고 (복구 완료!)
+    # 05. 잔액 경고
     st.markdown('<div class="label-header" style="color:#e74c3c;">05. 잔액 경고</div>', unsafe_allow_html=True)
     warn_bal = extract_int(st.text_input("경고용 잔액 입력", key="warn_in"))
     if warn_bal > 0:
@@ -153,7 +169,7 @@ if st.session_state.page == 'settle':
         topup_usdt = extract_int(st.text_input("탑업 USDT 수량", key="t_usdt"))
         final_t_rate = ts_rate if ts_rate > 0 else (tm_rate - math.ceil(tm_rate * 0.005) if tm_rate > 0 else 0)
         if final_t_rate > 0:
-            st.markdown(f'<div class="payout-rate-box">1usdt = {fmt(final_t_rate)} krw >>> 적용 환율</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="color: #5dade2; font-size: 1.2em; font-weight: bold; margin-top: 32px; font-family: monospace; text-align: center;">1usdt = {fmt(final_t_rate)} krw >>> 적용 환율</div>', unsafe_allow_html=True)
 
     if topup_usdt > 0 and final_t_rate > 0:
         total_krw = topup_usdt * final_t_rate
@@ -163,9 +179,9 @@ if st.session_state.page == 'settle':
         copy_box(f"드래곤 테더탑업 수수료 {m_fee_rate}% {selected_m} / {fmt(topup_usdt * base_rate)} / {fmt(t_markup)}", "yellow", key="topup_fee_res")
 
 elif st.session_state.page == 'admin':
-    # (머천트 관리 페이지 - 동일)
     st.title("⚙️ 머천트 설정 관리")
     with st.form("new_m"):
+        st.subheader("➕ 신규 업체 등록")
         n_name = st.text_input("업체 이름")
         n_wallet = st.text_input("지갑 주소")
         n_fee = st.text_input("마크업 수수료 (요율) %", value="0.5")
