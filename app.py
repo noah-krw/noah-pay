@@ -7,7 +7,7 @@ import os
 import re
 
 # ============================================================
-# 정산 매크로 v89.7 - Noah 전용 (입력 글자 노란색 / 데이터 복구)
+# 정산 매크로 v89.8 - Noah 전용 (명칭 최종 수정 및 데이터 복구)
 # ============================================================
 
 DB_FILE = "merchants.json"
@@ -78,14 +78,12 @@ def copy_box(text, color_type="blue"):
     """
     components.html(html_code, height=height)
 
-st.set_page_config(page_title="정산 매크로 v89.7", layout="centered")
+st.set_page_config(page_title="정산 매크로 v89.8", layout="centered")
 
-# --- 입력 글자만 노란색으로 강조 ---
 st.markdown("""
 <style>
     [data-testid="stAppViewContainer"] { background-color: #0a0e17 !important; color: #c8d6e5 !important; }
     div[data-baseweb="input"] { background-color: #ffffff !important; border-radius: 6px !important; }
-    /* 배경은 흰색, 글자만 노란색(가독성을 위해 약간 어두운 황금색 계열) */
     input { 
         color: #d4ac0d !important; 
         -webkit-text-fill-color: #d4ac0d !important;
@@ -173,20 +171,20 @@ if st.session_state.page == 'settle':
 elif st.session_state.page == 'admin':
     st.title("⚙️ 머천트 설정 관리")
     with st.form("new_m"):
+        st.subheader("➕ 신규 업체 등록")
         n_name = st.text_input("업체 이름")
         n_wallet = st.text_input("지갑 주소")
-        n_fee = st.text_input("마크업 요율 (%)", value="0.5")
+        n_fee = st.text_input("마크업 수수료 (요율) %", value="0.5")
         if st.form_submit_button("등록"):
             if n_name and n_wallet:
                 st.session_state.db[n_name] = {"wallet": n_wallet, "fee": n_fee}
                 save_data(st.session_state.db); st.rerun()
     st.divider()
-    # 머천트 리스트 출력부 복구
     for name in sorted(st.session_state.db.keys()):
         with st.expander(f"📦 {name}"):
             info = st.session_state.db[name]
-            u_w = st.text_input("지갑", value=info['wallet'], key=f"w_{name}")
-            u_f = st.text_input("요율", value=info['fee'], key=f"f_{name}")
+            u_w = st.text_input("지갑 주소", value=info['wallet'], key=f"w_{name}")
+            u_f = st.text_input("마크업 수수료 (요율) %", value=info['fee'], key=f"f_{name}")
             c1, c2 = st.columns(2)
             with c1:
                 if st.button("저장", key=f"s_{name}"):
