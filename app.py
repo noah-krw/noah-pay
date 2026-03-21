@@ -4,7 +4,7 @@ import json
 import os
 import re
 
-# [정산 매크로 v86 - Noah 전용: 탑업 수수료 0.5% 차감 로직 및 마크업 추가]
+# [정산 매크로 v87 - Noah 전용: 탑업 섹션 수동 환율 기능 추가 최종본]
 
 DB_FILE = "merchants.json"
 
@@ -45,7 +45,7 @@ def extract_int(text):
     num_str = re.sub(r'[^0-9]', '', text)
     return int(num_str) if num_str else 0
 
-st.set_page_config(page_title="정산 매크로 v86", layout="centered")
+st.set_page_config(page_title="정산 매크로 v87", layout="centered")
 
 st.markdown("""
     <style>
@@ -122,29 +122,40 @@ if st.session_state.page == 'settle':
     if warn_bal > 0:
         st.code(f"Balance update - {selected_m} : {warn_bal:,} krw", language="text")
 
-    # 6. Top-up(탑업) 요청 (드래곤 수수료 0.5% 반영)
+    # 6. Top-up(탑업) 요청 (수동 환율 추가)
     st.divider()
-    st.markdown('<p class="label" style="color:#2ecc71;">6. Top-up(탑업) 요청 (수수료 0.5% 자동차감)</p>', unsafe_allow_html=True)
+    st.markdown('<p class="label" style="color:#2ecc71;">6. Top-up(탑업) 요청 (수수료 0.5% 차감)</p>', unsafe_allow_html=True)
+    topup_usdt = extract_int(st.text_input("탑업 USDT 수량", value="0", key="t_usdt"))
+    if topup_usdt > 0: st.caption(f"확인: {topup_usdt:,} USDT")
+    
     col_t1, col_t2 = st.columns(2)
     with col_t1:
-        topup_usdt = extract_int(st.text_input("탑업 USDT 수량", value="0", key="t_usdt"))
-        if topup_usdt > 0: st.caption(f"확인: {topup_usdt:,} USDT")
+        t_market_rate = extract_int(st.text_input("탑업 빗썸 시세", value="0", key="t_m_rate"))
+        if t_market_rate > 0:
+            deduction = math.ceil(t_market_rate * 0.005)
+            auto_rate = t_market_rate - deduction
+            st.caption(f"자동 적용(0.5% 차감): {auto_rate:,} 원")
     with col_t2:
-        topup_market_rate = extract_int(st.text_input("현재 빗썸 시세", value="0", key="t_rate"))
-        if topup_market_rate > 0:
-            # 0.5% 수수료 차감 로직 (올림 처리 후 차감)
-            deduction = math.ceil(topup_market_rate * 0.005)
-            applied_rate = topup_market_rate - deduction
-            st.caption(f"적용 환율(0.5% 차감): {applied_rate:,} 원")
+        t_manual_rate = extract_int(st.text_input("탑업 수동 환율", value="0", key="t_s_rate"))
+        if t_manual_rate > 0: st.caption(f"수동 적용 확인: {t_manual_rate:,} 원")
     
-    if topup_usdt > 0 and topup_market_rate > 0:
-        applied_rate = topup_market_rate - math.ceil(topup_market_rate * 0.005)
-        total_krw = topup_usdt * applied_rate
-        topup_msg = f"top-up\n\nmid : {selected_m}\ntop-up amount : {topup_usdt:,} usdt\nexchange to KRW : {total_krw:,} krw\n1usdt = {applied_rate:,} krw\n\n{m_info['wallet']}\n\nPlease check the invoice and transfer the USDT to the address provided."
+    # 최종 탑업 환율 결정 로직
+    if t_manual_rate > 0:
+        final_t_rate = t_manual_rate
+    elif t_market_rate > 0:
+        final_t_rate = t_market_rate - math.ceil(t_market_rate * 0.005)
+    else:
+        final_t_rate = 0
+
+    if topup_usdt > 0 and final_t_rate > 0:
+        total_krw = topup_usdt * final_t_rate
+        topup_msg = f"top-up\n\nmid : {selected_m}\ntop-up amount : {topup_usdt:,} usdt\nexchange to KRW : {total_krw:,} krw\n1usdt = {final_t_rate:,} krw\n\n{m_info['wallet']}\n\nPlease check the invoice and transfer the USDT to the address provided."
         st.code(topup_msg, language="text")
         
         if st.button("탑업 원라인 마크업 생성"):
-            total_market_krw = topup_usdt * topup_market_rate
+            # 수수료 마크업은 시장가 기준으로 0.5% 떼는 것을 보여주거나, 수동 환율 기준의 수수료를 계산
+            base_rate = t_manual_rate if t_manual_rate > 0 else t_market_rate
+            total_market_krw = topup_usdt * base_rate
             total_fee_krw = math.ceil(total_market_krw * 0.005)
             st.code(f"드래곤 테더탑업 수수료 0.5% {selected_m} / {total_market_krw:,} / {total_fee_krw:,}", language="text")
 
