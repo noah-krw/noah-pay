@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 
 # ============================================================
-# 정산 매크로 v88 - Noah 전용 디자인 통합본
+# 정산 매크로 v88.2 - Noah 전용 디자인 & 기능 완전 통합본
 # ============================================================
 
 DB_FILE = "merchants.json"
@@ -64,6 +64,7 @@ def copy_box(text, color_type="blue"):
     c = colors.get(color_type, colors["blue"])
     js_text = json.dumps(text)
     line_count = text.count("\n") + 1
+    # 높이 자동 조절 (내용에 따라)
     height = max(80, line_count * 24 + 50)
 
     html_code = f"""
@@ -71,7 +72,7 @@ def copy_box(text, color_type="blue"):
                 border-radius:6px; padding:15px; font-family:monospace; font-size:13.5px; line-height:1.6; color:{c['text']};">
         <button onclick="copyToClipboard()" style="position:absolute; top:10px; right:10px; background:#0f2040; color:#5dade2; 
                 border:1px solid #1e3a5f; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:11px;">📋 복사</button>
-        <pre id="copyTarget" style="margin:0; white-space:pre-wrap; word-break:break-all;">{text}</pre>
+        <pre id="copyTarget" style="margin:0; white-space:pre-wrap; word-break:break-all; font-family:inherit;">{text}</pre>
     </div>
     <script>
     function copyToClipboard() {{
@@ -82,14 +83,18 @@ def copy_box(text, color_type="blue"):
         el.select();
         document.execCommand('copy');
         document.body.removeChild(el);
-        alert('복사되었습니다!');
+        // 버튼 텍스트 잠시 변경
+        const btn = event.target;
+        const originalText = btn.innerText;
+        btn.innerText = '✅ 완료';
+        setTimeout(() => {{ btn.innerText = originalText; }}, 1000);
     }}
     </script>
     """
     components.html(html_code, height=height)
 
 # --- 페이지 설정 및 스타일 ---
-st.set_page_config(page_title="정산 매크로 v88", layout="centered")
+st.set_page_config(page_title="정산 매크로 v88.2", layout="centered")
 
 st.markdown("""
 <style>
@@ -127,10 +132,10 @@ if st.session_state.page == 'settle':
     multiplier = st.radio("적용 배수", [1.04, 1.045, 1.05], format_func=lambda x: f"{(x-1)*100:.1f}%", index=0, horizontal=True)
     c1, c2 = st.columns(2)
     with c1:
-        b_val = extract_int(st.text_input("빗썸 시세", value="0"))
+        b_val = extract_int(st.text_input("빗썸 시세", value="0", key="b_val_input"))
         if b_val > 0: st.markdown(f'<div class="status-val">→ {fmt(b_val)} 원</div>', unsafe_allow_html=True)
     with c2:
-        s_val = extract_int(st.text_input("수동 환율 (우선 적용)", value="0"))
+        s_val = extract_int(st.text_input("수동 환율 (우선 적용)", value="0", key="s_val_input"))
         if s_val > 0: st.markdown(f'<div class="status-val">→ {fmt(s_val)} 원</div>', unsafe_allow_html=True)
     
     current_rate = s_val if s_val > 0 else math.ceil(b_val * multiplier)
@@ -139,7 +144,7 @@ if st.session_state.page == 'settle':
 
     # 2. 정산 요청
     st.markdown('<div class="label-header">02. 정산 요청 (USDT 변환)</div>', unsafe_allow_html=True)
-    amount = extract_int(st.text_input("정산 금액 (KRW)"))
+    amount = extract_int(st.text_input("정산 금액 (KRW)", key="amount_input"))
     if amount > 0:
         st.markdown(f'<div class="status-val">→ {fmt(amount)} 원</div>', unsafe_allow_html=True)
         usdt_val = round(amount / current_rate, 2)
@@ -148,7 +153,7 @@ if st.session_state.page == 'settle':
 
     # 3. 최종 잔액 보고
     st.markdown('<div class="label-header">03. 최종 잔액 보고</div>', unsafe_allow_html=True)
-    balance = extract_int(st.text_input("현재 잔액 입력 (KRW)"))
+    balance = extract_int(st.text_input("현재 잔액 입력 (KRW)", key="balance_input"))
     if balance > 0:
         st.markdown(f'<div class="status-val">→ {fmt(balance)} 원</div>', unsafe_allow_html=True)
         usdt_ceil = math.ceil(amount / current_rate)
@@ -165,17 +170,27 @@ if st.session_state.page == 'settle':
         markup_msg = f"{prefix} 수수료 {fee_rate}% {selected_m} / {fmt(amount)} / {fmt(calc_fee)}"
         copy_box(markup_msg, "yellow")
 
-    # 5. 탑업(Top-up) 요청
+    # 5. 잔액 경고 (Balance Warning) - 실장님 요청 복구
+    st.markdown('<div class="label-header" style="color:#e74c3c;">05. 잔액 경고 (Balance Warning)</div>', unsafe_allow_html=True)
+    warn_bal = extract_int(st.text_input("경고용 잔액 입력 (KRW)", key="warn_bal_input"))
+    if warn_bal > 0:
+        st.markdown(f'<div class="status-val">→ {fmt(warn_bal)} 원</div>', unsafe_allow_html=True)
+        warn_msg = f"Balance update - {selected_m} : {fmt(warn_bal)} krw"
+        copy_box(warn_msg, "red")
+
+    # 6. 탑업(Top-up) 요청
     st.divider()
-    st.markdown('<div class="label-header" style="color:#2ecc71;">05. TOP-UP 요청 (수수료 0.5% 차감)</div>', unsafe_allow_html=True)
-    topup_usdt = extract_int(st.text_input("탑업 USDT 수량"))
+    st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청 (수수료 0.5% 차감)</div>', unsafe_allow_html=True)
+    topup_usdt = extract_int(st.text_input("탑업 USDT 수량", key="t_usdt_input"))
     if topup_usdt > 0: st.markdown(f'<div class="status-val">→ {fmt(topup_usdt)} USDT</div>', unsafe_allow_html=True)
     
     tc1, tc2 = st.columns(2)
     with tc1:
-        tm_rate = extract_int(st.text_input("탑업용 빗썸 시세"))
+        tm_rate = extract_int(st.text_input("탑업용 빗썸 시세", key="tm_rate_input"))
+        if tm_rate > 0: st.markdown(f'<div class="status-val">→ {fmt(tm_rate)} 원</div>', unsafe_allow_html=True)
     with tc2:
-        ts_rate = extract_int(st.text_input("탑업용 수동 환율"))
+        ts_rate = extract_int(st.text_input("탑업용 수동 환율", key="ts_rate_input"))
+        if ts_rate > 0: st.markdown(f'<div class="status-val">→ {fmt(ts_rate)} 원</div>', unsafe_allow_html=True)
     
     if ts_rate > 0: final_t_rate = ts_rate
     elif tm_rate > 0: final_t_rate = tm_rate - math.ceil(tm_rate * 0.005)
@@ -195,7 +210,6 @@ if st.session_state.page == 'settle':
 else:
     # 설정 페이지
     st.title("⚙️ 머천트 설정 관리")
-    # (업체 등록 및 수정 로직은 이전과 동일하게 유지)
     with st.form("new_merchant"):
         st.subheader("➕ 신규 업체 등록")
         n_name = st.text_input("업체 이름")
@@ -207,11 +221,18 @@ else:
                 save_data(st.session_state.db); st.success("등록 완료!"); st.rerun()
 
     st.divider()
+    st.subheader("📂 업체 목록 수정/삭제")
     for name in sorted(st.session_state.db.keys()):
         with st.expander(f"📦 {name}"):
             info = st.session_state.db[name]
             u_w = st.text_input("지갑", value=info['wallet'], key=f"w_{name}")
             u_f = st.text_input("요율", value=info['fee'], key=f"f_{name}")
-            if st.button("저장", key=f"btn_{name}"):
-                st.session_state.db[name] = {"wallet": u_w, "fee": u_f}
-                save_data(st.session_state.db); st.success("저장됨")
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("저장", key=f"btn_save_{name}"):
+                    st.session_state.db[name] = {"wallet": u_w, "fee": u_f}
+                    save_data(st.session_state.db); st.success("저장됨"); st.rerun()
+            with c2:
+                if st.button("삭제", key=f"btn_del_{name}"):
+                    del st.session_state.db[name]
+                    save_data(st.session_state.db); st.warning("삭제됨"); st.rerun()
