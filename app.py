@@ -7,7 +7,7 @@ import os
 import re
 
 # ============================================================
-# 정산 매크로 v89.8 - Noah 전용 (명칭 최종 수정 및 데이터 복구)
+# 정산 매크로 v89.9 - Noah 전용 (결과값 직접 수정 기능 추가)
 # ============================================================
 
 DB_FILE = "merchants.json"
@@ -48,7 +48,8 @@ def extract_int(text):
 
 def fmt(n): return f"{n:,}"
 
-def copy_box(text, color_type="blue"):
+# --- 수정 가능하도록 TextArea 기반의 복사 박스로 변경 ---
+def copy_box(text, color_type="blue", key=None):
     colors = {
         "blue": {"border": "#4a90d9", "bg": "#060d18", "text": "#a8c7e8"},
         "green": {"border": "#27ae60", "bg": "#06180d", "text": "#7dcea0"},
@@ -56,29 +57,43 @@ def copy_box(text, color_type="blue"):
         "red": {"border": "#e74c3c", "bg": "#180606", "text": "#f1948a"}
     }
     c = colors.get(color_type, colors["blue"])
-    js_text = json.dumps(text)
-    line_count = text.count("\n") + 1
-    height = max(80, line_count * 24 + 65)
-    html_code = f"""
-    <div style="position:relative; background:{c['bg']}; border:1px solid #1e3a5f; border-left:4px solid {c['border']}; 
-                border-radius:6px; padding:15px; font-family:monospace; font-size:14px; line-height:1.6; color:{c['text']};">
-        <button onclick="copyToClipboard(event)" style="position:absolute; top:10px; right:10px; background:#0f2040; color:#5dade2; 
-                border:1px solid #1e3a5f; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:11px;">📋 복사</button>
-        <pre style="margin:0; white-space:pre-wrap; word-break:break-all; font-family:inherit;">{text}</pre>
-    </div>
-    <script>
-    function copyToClipboard(e) {{
-        const text = {js_text};
-        const el = document.createElement('textarea'); el.value = text; document.body.appendChild(el);
-        el.select(); document.execCommand('copy'); document.body.removeChild(el);
-        const btn = e.target; btn.innerText = '✅ 완료';
-        setTimeout(() => {{ btn.innerText = '📋 복사'; }}, 1000);
+    
+    # 텍스트 박스 높이 계산 (최소 150px)
+    line_count = text.count("\n") + 2
+    box_height = max(150, line_count * 25)
+    
+    st.markdown(f"""
+    <style>
+    .stTextArea textarea[key="{key}"] {{
+        background-color: {c['bg']} !important;
+        color: {c['text']} !important;
+        border: 1px solid #1e3a5f !important;
+        border-left: 4px solid {c['border']} !important;
+        font-family: monospace !important;
+        font-size: 14px !important;
+        line-height: 1.6 !important;
     }}
-    </script>
-    """
-    components.html(html_code, height=height)
+    </style>
+    """, unsafe_allow_html=True)
+    
+    edited_text = st.text_area("결과 확인 (여기서 직접 수정 가능)", value=text, height=box_height, key=key)
+    
+    if st.button("📋 위 내용 복사하기", key=f"btn_{key}"):
+        components.html(f"""
+        <script>
+        const el = parent.document.querySelectorAll('textarea')[{list(st.session_state.keys()).index(key) if key in st.session_state else 0}];
+        const text = `{edited_text}`;
+        const temp = document.createElement('textarea');
+        temp.value = text;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+        alert('복사되었습니다!');
+        </script>
+        """, height=0)
 
-st.set_page_config(page_title="정산 매크로 v89.8", layout="centered")
+st.set_page_config(page_title="정산 매크로 v89.9", layout="centered")
 
 st.markdown("""
 <style>
@@ -103,10 +118,6 @@ with st.sidebar:
     st.title("💹 정산 매크로")
     if st.button("🚀 정산 작업"): st.session_state.page = 'settle'
     if st.button("⚙️ 머천트 관리"): st.session_state.page = 'admin'
-    st.divider()
-    if st.button("⚠️ 데이터 초기화"):
-        st.session_state.db = get_default_list()
-        save_data(st.session_state.db); st.rerun()
 
 if st.session_state.page == 'settle':
     st.title("🚀 실시간 정산 작업")
@@ -121,33 +132,27 @@ if st.session_state.page == 'settle':
     with c1: b_val = extract_int(st.text_input("빗썸 시세", key="b_val", value="0"))
     with c2: s_val = extract_int(st.text_input("수동 환율", key="s_val", value="0"))
     current_rate = s_val if s_val > 0 else math.ceil(b_val * multiplier)
-    if current_rate > 0: copy_box(f"1 USDT = {fmt(current_rate)} KRW", "blue")
+    if current_rate > 0: copy_box(f"1 USDT = {fmt(current_rate)} KRW", "blue", key="rate_res")
 
     st.markdown('<div class="label-header">02. 정산 요청</div>', unsafe_allow_html=True)
     amount = extract_int(st.text_input("정산 금액 (KRW)", key="amt_in"))
     if amount > 0:
         usdt_val = round(amount / current_rate, 2)
         settle_msg = f"- {selected_m} settlement amount : {fmt(amount)} krw\n- exchange to usdt : {usdt_val:,.2f} usdt\n- 1usdt = {fmt(current_rate)} krw\n\n{m_info['wallet']}\n\nPlease confirm the address and calculation.\nOnce approved, we will proceed immediately"
-        copy_box(settle_msg, "blue")
+        copy_box(settle_msg, "blue", key="settle_res")
 
     st.markdown('<div class="label-header">03. 최종 잔액 보고</div>', unsafe_allow_html=True)
     balance = extract_int(st.text_input("현재 잔액 입력 (KRW)", key="bal_in"))
     if balance > 0:
         usdt_ceil = math.ceil(amount / current_rate)
         balance_msg = f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {fmt(amount)} krw\nexchange to usdt : {fmt(usdt_ceil)} usdt\n1usdt = {fmt(current_rate)} krw\n\n- {selected_m} : {fmt(balance)} krw"
-        copy_box(balance_msg, "green")
+        copy_box(balance_msg, "green", key="balance_res")
 
     st.markdown('<div class="label-header">04. 마크업 수수료 계산</div>', unsafe_allow_html=True)
     m_fee_rate = float(m_info.get('fee', 0.5))
     markup_fee = math.ceil(amount * (m_fee_rate / 100))
     if amount > 0:
-        copy_box(f"마크업 수수료 {m_fee_rate}% {selected_m} / {fmt(amount)} / {fmt(markup_fee)}", "yellow")
-
-    st.markdown('<div class="label-header" style="color:#e74c3c;">05. 잔액 경고</div>', unsafe_allow_html=True)
-    warn_bal = extract_int(st.text_input("경고용 잔액 입력", key="warn_in"))
-    if warn_bal > 0:
-        warn_msg = f"Hello, Team\nCurrently, the balance of the merchants is too high.\nTo ensure a safe balance, please proceed with USDT settlement.\nThank you\n\nBalance update\n\n- {selected_m} : {fmt(warn_bal)} krw"
-        copy_box(warn_msg, "red")
+        copy_box(f"마크업 수수료 {m_fee_rate}% {selected_m} / {fmt(amount)} / {fmt(markup_fee)}", "yellow", key="markup_res")
 
     st.divider()
     st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
@@ -163,10 +168,10 @@ if st.session_state.page == 'settle':
 
     if topup_usdt > 0 and final_t_rate > 0:
         total_krw = topup_usdt * final_t_rate
-        copy_box(f"top-up\n\nmid : {selected_m}\ntop-up amount : {fmt(topup_usdt)} usdt\nexchange to KRW : {fmt(total_krw)} krw\n1usdt = {fmt(final_t_rate)} krw\n\n{m_info['wallet']}", "green")
+        copy_box(f"top-up\n\nmid : {selected_m}\ntop-up amount : {fmt(topup_usdt)} usdt\nexchange to KRW : {fmt(total_krw)} krw\n1usdt = {fmt(final_t_rate)} krw\n\n{m_info['wallet']}", "green", key="topup_res")
         base_rate = ts_rate if ts_rate > 0 else tm_rate
         t_markup = math.ceil((topup_usdt * base_rate) * (m_fee_rate / 100))
-        copy_box(f"드래곤 테더탑업 수수료 {m_fee_rate}% {selected_m} / {fmt(topup_usdt * base_rate)} / {fmt(t_markup)}", "yellow")
+        copy_box(f"드래곤 테더탑업 수수료 {m_fee_rate}% {selected_m} / {fmt(topup_usdt * base_rate)} / {fmt(t_markup)}", "yellow", key="topup_fee_res")
 
 elif st.session_state.page == 'admin':
     st.title("⚙️ 머천트 설정 관리")
