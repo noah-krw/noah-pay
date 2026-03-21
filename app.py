@@ -7,7 +7,7 @@ import os
 import re
 
 # ============================================================
-# 정산 매크로 v90.0 - Noah 전용 (박스 높이 최적화 및 가변형 편집)
+# 정산 매크로 v90.1 - Noah 전용 (05. 경고 섹션 복구 및 가변 박스)
 # ============================================================
 
 DB_FILE = "merchants.json"
@@ -38,7 +38,6 @@ def extract_int(text):
 
 def fmt(n): return f"{n:,}"
 
-# --- 내용 길이에 따라 높이가 조절되는 편집 박스 ---
 def copy_box(text, color_type="blue", key=None):
     colors = {
         "blue": {"border": "#4a90d9", "bg": "#060d18", "text": "#a8c7e8"},
@@ -47,15 +46,11 @@ def copy_box(text, color_type="blue", key=None):
         "red": {"border": "#e74c3c", "bg": "#180606", "text": "#f1948a"}
     }
     c = colors.get(color_type, colors["blue"])
-    
-    # 줄 수 계산하여 높이 동적 할당 (한 줄은 최소 높이로)
     line_count = text.count("\n") + 1
-    # 한 줄일 때 약 68px, 여러 줄일 때 줄당 약 25px 추가
     box_height = 68 if line_count == 1 else (line_count * 25) + 40
     
     st.markdown(f"""
     <style>
-    div[data-testid="stFormSubmitButton"] > button {{ width: 100%; }}
     .stTextArea textarea[key="{key}"] {{
         background-color: {c['bg']} !important;
         color: {c['text']} !important;
@@ -69,41 +64,27 @@ def copy_box(text, color_type="blue", key=None):
     </style>
     """, unsafe_allow_html=True)
     
-    edited_text = st.text_area("결과 확인 (수정 가능)", value=text, height=box_height, key=key, label_visibility="collapsed")
+    edited_text = st.text_area("수정 가능", value=text, height=box_height, key=key, label_visibility="collapsed")
     
     if st.button("📋 복사", key=f"btn_{key}"):
-        # 가상 textarea 생성하여 클립보드 복사 로직
-        js_code = f"""
-        <script>
-        function copy() {{
-            const text = `{edited_text}`;
-            const el = document.createElement('textarea');
-            el.value = text;
-            document.body.appendChild(el);
-            el.select();
-            document.execCommand('copy');
-            document.body.removeChild(el);
-        }}
-        copy();
-        </script>
-        """
+        js_code = f"""<script>
+        const el = document.createElement('textarea');
+        el.value = `{edited_text}`;
+        document.body.appendChild(el); el.select();
+        document.execCommand('copy'); document.body.removeChild(el);
+        </script>"""
         components.html(js_code, height=0)
-        st.toast("클립보드에 복사되었습니다!")
+        st.toast("복사 완료!")
 
-st.set_page_config(page_title="정산 매크로 v90.0", layout="centered")
+st.set_page_config(page_title="정산 매크로 v90.1", layout="centered")
 
 st.markdown("""
 <style>
     [data-testid="stAppViewContainer"] { background-color: #0a0e17 !important; color: #c8d6e5 !important; }
     div[data-baseweb="input"] { background-color: #ffffff !important; border-radius: 6px !important; }
-    input { 
-        color: #d4ac0d !important; 
-        -webkit-text-fill-color: #d4ac0d !important;
-        font-weight: bold !important; 
-        font-family: monospace !important; 
-        font-size: 1.2em !important; 
-    }
+    input { color: #d4ac0d !important; -webkit-text-fill-color: #d4ac0d !important; font-weight: bold !important; font-family: monospace !important; font-size: 1.2em !important; }
     .label-header { color: #4a90d9; font-weight: bold; font-size: 1.25em; border-bottom: 2px solid #1e2d45; padding-bottom: 8px; margin-top: 30px; margin-bottom: 10px; text-transform: uppercase; }
+    .payout-rate-box { color: #5dade2; font-size: 1.2em; font-weight: bold; margin-top: 32px; font-family: monospace; text-align: center; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -122,14 +103,16 @@ if st.session_state.page == 'settle':
     selected_m = st.selectbox("업체 선택", sorted_keys, index=default_idx)
     m_info = st.session_state.db[selected_m]
     
+    # 01. 환율
     st.markdown('<div class="label-header">01. 환율 설정</div>', unsafe_allow_html=True)
-    multiplier = st.radio("적용 배수", [1.04, 1.045, 1.05], index=0, horizontal=True)
+    multiplier = st.radio("적용 배수", [1.04, 1.045, 1.05], horizontal=True)
     c1, c2 = st.columns(2)
     with c1: b_val = extract_int(st.text_input("빗썸 시세", key="b_val", value="0"))
     with c2: s_val = extract_int(st.text_input("수동 환율", key="s_val", value="0"))
     current_rate = s_val if s_val > 0 else math.ceil(b_val * multiplier)
     if current_rate > 0: copy_box(f"1 USDT = {fmt(current_rate)} KRW", "blue", key="rate_res")
 
+    # 02. 정산 요청
     st.markdown('<div class="label-header">02. 정산 요청</div>', unsafe_allow_html=True)
     amount = extract_int(st.text_input("정산 금액 (KRW)", key="amt_in"))
     if amount > 0:
@@ -137,6 +120,7 @@ if st.session_state.page == 'settle':
         settle_msg = f"- {selected_m} settlement amount : {fmt(amount)} krw\n- exchange to usdt : {usdt_val:,.2f} usdt\n- 1usdt = {fmt(current_rate)} krw\n\n{m_info['wallet']}\n\nPlease confirm the address and calculation.\nOnce approved, we will proceed immediately"
         copy_box(settle_msg, "blue", key="settle_res")
 
+    # 03. 최종 잔액 보고
     st.markdown('<div class="label-header">03. 최종 잔액 보고</div>', unsafe_allow_html=True)
     balance = extract_int(st.text_input("현재 잔액 입력 (KRW)", key="bal_in"))
     if balance > 0:
@@ -144,10 +128,63 @@ if st.session_state.page == 'settle':
         balance_msg = f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {fmt(amount)} krw\nexchange to usdt : {fmt(usdt_ceil)} usdt\n1usdt = {fmt(current_rate)} krw\n\n- {selected_m} : {fmt(balance)} krw"
         copy_box(balance_msg, "green", key="balance_res")
 
+    # 04. 마크업 수수료
     st.markdown('<div class="label-header">04. 마크업 수수료 계산</div>', unsafe_allow_html=True)
     m_fee_rate = float(m_info.get('fee', 0.5))
     markup_fee = math.ceil(amount * (m_fee_rate / 100))
     if amount > 0:
         copy_box(f"마크업 수수료 {m_fee_rate}% {selected_m} / {fmt(amount)} / {fmt(markup_fee)}", "yellow", key="markup_res")
 
-    # (이하 생략 - TOP-UP 등 로직 동일)
+    # 05. 잔액 경고 (복구 완료!)
+    st.markdown('<div class="label-header" style="color:#e74c3c;">05. 잔액 경고</div>', unsafe_allow_html=True)
+    warn_bal = extract_int(st.text_input("경고용 잔액 입력", key="warn_in"))
+    if warn_bal > 0:
+        warn_msg = f"Hello, Team\nCurrently, the balance of the merchants is too high.\nTo ensure a safe balance, please proceed with USDT settlement.\nThank you\n\nBalance update\n\n- {selected_m} : {fmt(warn_bal)} krw"
+        copy_box(warn_msg, "red", key="warn_res")
+
+    # 06. TOP-UP
+    st.divider()
+    st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
+    cl, cr = st.columns([1, 1.2]) 
+    with cl:
+        tm_rate = extract_int(st.text_input("탑업 빗썸 시세", key="tm_rate"))
+        ts_rate = extract_int(st.text_input("탑업 수동 환율", key="ts_rate"))
+    with cr:
+        topup_usdt = extract_int(st.text_input("탑업 USDT 수량", key="t_usdt"))
+        final_t_rate = ts_rate if ts_rate > 0 else (tm_rate - math.ceil(tm_rate * 0.005) if tm_rate > 0 else 0)
+        if final_t_rate > 0:
+            st.markdown(f'<div class="payout-rate-box">1usdt = {fmt(final_t_rate)} krw >>> 적용 환율</div>', unsafe_allow_html=True)
+
+    if topup_usdt > 0 and final_t_rate > 0:
+        total_krw = topup_usdt * final_t_rate
+        copy_box(f"top-up\n\nmid : {selected_m}\ntop-up amount : {fmt(topup_usdt)} usdt\nexchange to KRW : {fmt(total_krw)} krw\n1usdt = {fmt(final_t_rate)} krw\n\n{m_info['wallet']}", "green", key="topup_res")
+        base_rate = ts_rate if ts_rate > 0 else tm_rate
+        t_markup = math.ceil((topup_usdt * base_rate) * (m_fee_rate / 100))
+        copy_box(f"드래곤 테더탑업 수수료 {m_fee_rate}% {selected_m} / {fmt(topup_usdt * base_rate)} / {fmt(t_markup)}", "yellow", key="topup_fee_res")
+
+elif st.session_state.page == 'admin':
+    # (머천트 관리 페이지 - 동일)
+    st.title("⚙️ 머천트 설정 관리")
+    with st.form("new_m"):
+        n_name = st.text_input("업체 이름")
+        n_wallet = st.text_input("지갑 주소")
+        n_fee = st.text_input("마크업 수수료 (요율) %", value="0.5")
+        if st.form_submit_button("등록"):
+            if n_name and n_wallet:
+                st.session_state.db[n_name] = {"wallet": n_wallet, "fee": n_fee}
+                save_data(st.session_state.db); st.rerun()
+    st.divider()
+    for name in sorted(st.session_state.db.keys()):
+        with st.expander(f"📦 {name}"):
+            info = st.session_state.db[name]
+            u_w = st.text_input("지갑 주소", value=info['wallet'], key=f"w_{name}")
+            u_f = st.text_input("마크업 수수료 (요율) %", value=info['fee'], key=f"f_{name}")
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("저장", key=f"s_{name}"):
+                    st.session_state.db[name] = {"wallet": u_w, "fee": u_f}
+                    save_data(st.session_state.db); st.rerun()
+            with c2:
+                if st.button("삭제", key=f"d_{name}"):
+                    del st.session_state.db[name]
+                    save_data(st.session_state.db); st.rerun()
