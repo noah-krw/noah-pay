@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 
 # ============================================================
-# 정산 매크로 v88.5 - Noah 전용 (탑업 레이아웃 최적화 & 비고란 복구)
+# 정산 매크로 v88.6 - Noah 전용 (탑업 구도 완성 & '저장' 버튼 오타 수정)
 # ============================================================
 
 DB_FILE = "merchants.json"
@@ -81,7 +81,7 @@ def copy_box(text, color_type="blue"):
     """
     components.html(html_code, height=height)
 
-st.set_page_config(page_title="정산 매크로 v88.5", layout="centered")
+st.set_page_config(page_title="정산 매크로 v88.6", layout="centered")
 
 st.markdown("""
 <style>
@@ -89,7 +89,6 @@ st.markdown("""
     div[data-baseweb="input"] { background-color: #ffffff !important; border-radius: 6px !important; }
     input { color: #000000 !important; font-weight: bold !important; font-family: monospace !important; }
     .label-header { color: #4a90d9; font-weight: bold; font-size: 1.25em; border-bottom: 2px solid #1e2d45; padding-bottom: 8px; margin-top: 35px; margin-bottom: 15px; text-transform: uppercase; }
-    .status-val { color: #f1c40f; font-size: 0.9em; margin-top: -12px; margin-bottom: 8px; font-family: monospace; font-weight: bold; }
     .payout-rate-box { color: #5dade2; font-size: 1.1em; font-weight: bold; margin-top: 10px; font-family: monospace; }
 </style>
 """, unsafe_allow_html=True)
@@ -132,18 +131,18 @@ if st.session_state.page == 'settle':
         settle_msg = f"- {selected_m} settlement amount : {fmt(amount)} krw\n- exchange to usdt : {usdt_val:,.2f} usdt\n- 1usdt = {fmt(current_rate)} krw\n\n{m_info['wallet']}\n\nPlease confirm the address and calculation."
         copy_box(settle_msg, "blue")
 
-    # 05. 잔액 경고 (요청 문구)
+    # 05. 잔액 경고
     st.markdown('<div class="label-header" style="color:#e74c3c;">05. 잔액 경고</div>', unsafe_allow_html=True)
     warn_bal = extract_int(st.text_input("경고용 잔액 입력"))
     if warn_bal > 0:
         warn_msg = f"Hello, Team\nCurrently, the balance of the merchants is too high.\nTo ensure a safe balance, please proceed with USDT settlement.\nThank you\n\nBalance update\n\n- {selected_m} : {fmt(warn_bal)} krw"
         copy_box(warn_msg, "red")
 
-    # 06. TOP-UP 요청 (실장님 요청 구도로 변경)
+    # 06. TOP-UP 요청 (이미지 구도 반영)
     st.divider()
     st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
     
-    col_left, col_right = st.columns([1, 1.2]) # 왼쪽 시세, 오른쪽 수량 및 결과
+    col_left, col_right = st.columns([1, 1.2]) 
     
     with col_left:
         tm_rate = extract_int(st.text_input("탑업 빗썸 시세", key="tm_rate"))
@@ -152,7 +151,6 @@ if st.session_state.page == 'settle':
     with col_right:
         topup_usdt = extract_int(st.text_input("탑업 USDT 수량", key="t_usdt"))
         
-        # 실장님이 요청하신 "1usdt = x,xxx krw >>> 이거 표시하는칸"
         if ts_rate > 0: final_t_rate = ts_rate
         elif tm_rate > 0: final_t_rate = tm_rate - math.ceil(tm_rate * 0.005)
         else: final_t_rate = 0
@@ -170,14 +168,14 @@ if st.session_state.page == 'settle':
         copy_box(f"드래곤 테더탑업 수수료 0.5% {selected_m} / {fmt(topup_usdt * base_rate)} / {fmt(total_fee_krw)}", "yellow")
 
 else:
-    # 머천트 관리 (이미지대로 복구)
+    # 관리 페이지 (비고란/저장 버튼 수정)
     st.title("⚙️ 머천트 설정 관리")
     with st.form("new_m"):
         st.subheader("➕ 신규 업체 등록")
         n_name = st.text_input("업체 이름")
         n_wallet = st.text_input("지갑 주소")
         n_fee = st.text_input("수수료 (%)", value="0.5")
-        n_note = st.text_input("비고 (메모)") # 비고란 복구
+        n_note = st.text_input("비고 (메모)")
         if st.form_submit_button("등록"):
             if n_name and n_wallet:
                 st.session_state.db[n_name] = {"wallet": n_wallet, "fee": n_fee, "note": n_note}
@@ -188,10 +186,10 @@ else:
             info = st.session_state.db[name]
             u_w = st.text_input("지갑", value=info['wallet'], key=f"w_{name}")
             u_f = st.text_input("요율", value=info['fee'], key=f"f_{name}")
-            u_n = st.text_input("비고", value=info.get('note', ''), key=f"n_{name}") # 수정용 비고란
+            u_n = st.text_input("비고", value=info.get('note', ''), key=f"n_{name}")
             c1, c2 = st.columns(2)
             with c1:
-                if st.button("저가장", key=f"s_{name}"):
+                if st.button("저장", key=f"s_{name}"): # '저가장' 수정 완료
                     st.session_state.db[name] = {"wallet": u_w, "fee": u_f, "note": u_n}
                     save_data(st.session_state.db); st.rerun()
             with c2:
