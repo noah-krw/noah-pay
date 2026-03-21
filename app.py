@@ -7,7 +7,7 @@ import os
 import re
 
 # ============================================================
-# 정산 매크로 v89.0 - Noah 전용 (실시간 콤마 및 버그 최종 수정)
+# 정산 매크로 v89.1 - Noah 전용 (입력 버그 완전 해결본)
 # ============================================================
 
 DB_FILE = "merchants.json"
@@ -51,32 +51,6 @@ def extract_int(text):
 
 def fmt(n): return f"{n:,}"
 
-# --- 강력한 실시간 콤마 감시 스크립트 ---
-def inject_comma_js():
-    components.html("""
-    <script>
-    function applyComma() {
-        const inputs = window.parent.document.querySelectorAll('input[type="text"]');
-        inputs.forEach(input => {
-            if (input.dataset.listenerSet === "true") return;
-            
-            input.addEventListener('input', function(e) {
-                let rawValue = this.value.replace(/[^0-9]/g, '');
-                if (rawValue) {
-                    let formatted = parseInt(rawValue).toLocaleString();
-                    this.value = formatted;
-                }
-                // Streamlit에 값이 변경되었음을 즉시 알림
-                this.dispatchEvent(new Event('input', { bubbles: true }));
-            });
-            input.dataset.listenerSet = "true";
-        });
-    }
-    // 0.1초마다 새 입력창이 생겼는지 확인 (무한 감시)
-    setInterval(applyComma, 100);
-    </script>
-    """, height=0)
-
 def copy_box(text, color_type="blue"):
     colors = {
         "blue": {"border": "#4a90d9", "bg": "#060d18", "text": "#a8c7e8"},
@@ -107,7 +81,7 @@ def copy_box(text, color_type="blue"):
     """
     components.html(html_code, height=height)
 
-st.set_page_config(page_title="정산 매크로 v89.0", layout="centered")
+st.set_page_config(page_title="정산 매크로 v89.1", layout="centered")
 
 st.markdown("""
 <style>
@@ -115,6 +89,7 @@ st.markdown("""
     div[data-baseweb="input"] { background-color: #ffffff !important; border-radius: 6px !important; }
     input { color: #000000 !important; font-weight: bold !important; font-family: monospace !important; font-size: 1.1em !important; }
     .label-header { color: #4a90d9; font-weight: bold; font-size: 1.25em; border-bottom: 2px solid #1e2d45; padding-bottom: 8px; margin-top: 35px; margin-bottom: 15px; text-transform: uppercase; }
+    .val-check { color: #f1c40f; font-size: 0.85em; font-family: monospace; margin-top: -15px; margin-bottom: 10px; font-weight: bold; }
     .payout-rate-box { color: #5dade2; font-size: 1.1em; font-weight: bold; margin-top: 10px; font-family: monospace; }
 </style>
 """, unsafe_allow_html=True)
@@ -131,8 +106,6 @@ with st.sidebar:
         st.session_state.db = get_default_list()
         save_data(st.session_state.db); st.rerun()
 
-inject_comma_js() # 모든 페이지에서 공통 실행
-
 if st.session_state.page == 'settle':
     st.title("🚀 실시간 정산 작업")
     
@@ -147,14 +120,24 @@ if st.session_state.page == 'settle':
     st.markdown('<div class="label-header">01. 환율 설정</div>', unsafe_allow_html=True)
     multiplier = st.radio("적용 배수", [1.04, 1.045, 1.05], format_func=lambda x: f"{(x-1)*100:.1f}%", index=0, horizontal=True)
     c1, c2 = st.columns(2)
-    with c1: b_val = extract_int(st.text_input("빗썸 시세", key="b_val", value="0"))
-    with c2: s_val = extract_int(st.text_input("수동 환율", key="s_val", value="0"))
+    with c1: 
+        b_val_raw = st.text_input("빗썸 시세 (숫자만)", key="b_val", value="0")
+        st.markdown(f'<div class="val-check">확인: {fmt(extract_int(b_val_raw))}</div>', unsafe_allow_html=True)
+    with c2: 
+        s_val_raw = st.text_input("수동 환율 (숫자만)", key="s_val", value="0")
+        st.markdown(f'<div class="val-check">확인: {fmt(extract_int(s_val_raw))}</div>', unsafe_allow_html=True)
+    
+    b_val = extract_int(b_val_raw)
+    s_val = extract_int(s_val_raw)
     current_rate = s_val if s_val > 0 else math.ceil(b_val * multiplier)
     if current_rate > 0: copy_box(f"1 USDT = {fmt(current_rate)} KRW", "blue")
 
     # 02. 정산 요청
     st.markdown('<div class="label-header">02. 정산 요청</div>', unsafe_allow_html=True)
-    amount = extract_int(st.text_input("정산 금액 (KRW)", key="amt_in"))
+    amount_raw = st.text_input("정산 금액 (KRW)", key="amt_in")
+    amount = extract_int(amount_raw)
+    st.markdown(f'<div class="val-check">입력금액: {fmt(amount)} 원</div>', unsafe_allow_html=True)
+    
     if amount > 0:
         usdt_val = round(amount / current_rate, 2)
         settle_msg = f"- {selected_m} settlement amount : {fmt(amount)} krw\n- exchange to usdt : {usdt_val:,.2f} usdt\n- 1usdt = {fmt(current_rate)} krw\n\n{m_info['wallet']}\n\nPlease confirm the address and calculation."
@@ -162,7 +145,10 @@ if st.session_state.page == 'settle':
 
     # 03. 최종 잔액 보고
     st.markdown('<div class="label-header">03. 최종 잔액 보고</div>', unsafe_allow_html=True)
-    balance = extract_int(st.text_input("현재 잔액 입력 (KRW)", key="bal_in"))
+    balance_raw = st.text_input("현재 잔액 입력 (KRW)", key="bal_in")
+    balance = extract_int(balance_raw)
+    st.markdown(f'<div class="val-check">현재잔액: {fmt(balance)} 원</div>', unsafe_allow_html=True)
+    
     if balance > 0:
         usdt_ceil = math.ceil(amount / current_rate)
         balance_msg = f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {fmt(amount)} krw\nexchange to usdt : {fmt(usdt_ceil)} usdt\n1usdt = {fmt(current_rate)} krw\n\n- {selected_m} : {fmt(balance)} krw"
@@ -170,7 +156,10 @@ if st.session_state.page == 'settle':
 
     # 05. 잔액 경고
     st.markdown('<div class="label-header" style="color:#e74c3c;">05. 잔액 경고</div>', unsafe_allow_html=True)
-    warn_bal = extract_int(st.text_input("경고용 잔액 입력", key="warn_in"))
+    warn_bal_raw = st.text_input("경고용 잔액 입력", key="warn_in")
+    warn_bal = extract_int(warn_bal_raw)
+    st.markdown(f'<div class="val-check">경고잔액: {fmt(warn_bal)} 원</div>', unsafe_allow_html=True)
+    
     if warn_bal > 0:
         warn_msg = f"Hello, Team\nCurrently, the balance of the merchants is too high.\nTo ensure a safe balance, please proceed with USDT settlement.\nThank you\n\nBalance update\n\n- {selected_m} : {fmt(warn_bal)} krw"
         copy_box(warn_msg, "red")
@@ -180,13 +169,22 @@ if st.session_state.page == 'settle':
     st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
     col_left, col_right = st.columns([1, 1.2]) 
     with col_left:
-        tm_rate = extract_int(st.text_input("탑업 빗썸 시세", key="tm_rate"))
-        ts_rate = extract_int(st.text_input("탑업 수동 환율", key="ts_rate"))
+        tm_rate_raw = st.text_input("탑업 빗썸 시세", key="tm_rate")
+        tm_rate = extract_int(tm_rate_raw)
+        st.markdown(f'<div class="val-check">확인: {fmt(tm_rate)}</div>', unsafe_allow_html=True)
+        
+        ts_rate_raw = st.text_input("탑업 수동 환율", key="ts_rate")
+        ts_rate = extract_int(ts_rate_raw)
+        st.markdown(f'<div class="val-check">확인: {fmt(ts_rate)}</div>', unsafe_allow_html=True)
     with col_right:
-        topup_usdt = extract_int(st.text_input("탑업 USDT 수량", key="t_usdt"))
+        topup_usdt_raw = st.text_input("탑업 USDT 수량", key="t_usdt")
+        topup_usdt = extract_int(topup_usdt_raw)
+        st.markdown(f'<div class="val-check">확인: {fmt(topup_usdt)} USDT</div>', unsafe_allow_html=True)
+        
         if ts_rate > 0: final_t_rate = ts_rate
         elif tm_rate > 0: final_t_rate = tm_rate - math.ceil(tm_rate * 0.005)
         else: final_t_rate = 0
+        
         if final_t_rate > 0:
             st.markdown(f'<div class="payout-rate-box">1usdt = {fmt(final_t_rate)} krw >>> 적용 환율</div>', unsafe_allow_html=True)
 
