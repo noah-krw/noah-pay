@@ -4,7 +4,7 @@ import json
 import os
 import re
 
-# [정산 매크로 v84 - Noah 전용: 배수 기본값 4.0% 변경 및 spfxm 드래곤 분류]
+# [정산 매크로 v85 - Noah 전용: Top-up(탑업) 요청 기능 추가 버전]
 
 DB_FILE = "merchants.json"
 
@@ -45,7 +45,7 @@ def extract_int(text):
     num_str = re.sub(r'[^0-9]', '', text)
     return int(num_str) if num_str else 0
 
-st.set_page_config(page_title="정산 매크로 v84", layout="centered")
+st.set_page_config(page_title="정산 매크로 v85", layout="centered")
 
 st.markdown("""
     <style>
@@ -76,7 +76,6 @@ if st.session_state.page == 'settle':
     
     # 1. 환율 설정
     st.markdown('<p class="label">1. 환율 설정</p>', unsafe_allow_html=True)
-    # 인덱스를 0으로 변경하여 4.0%가 기본 선택되게 함
     multiplier = st.radio("배수", [1.04, 1.045, 1.05], format_func=lambda x: f"{(x-1)*100:.1f}%", index=0, horizontal=True)
     c1, c2 = st.columns(2)
     with c1: 
@@ -112,7 +111,6 @@ if st.session_state.page == 'settle':
         if amount > 0:
             fee_rate = float(m_info.get('fee', 0.5))
             calc_fee = math.ceil(amount * (fee_rate / 100))
-            # spfxm을 드래곤 리스트에 추가
             dragon_list = ['dr188', 'drgtssen', 'Dpinnacle', 'drSpinmama', 'drbetssen', 'NextbetM/G', 'DafabetM/G', 'drgtkore', 'drolymp', 'drbetkore', 'drTapTap', 'spfxm']
             prefix = "드래곤 테더정산" if selected_m in dragon_list else "일반 테더정산"
             short_markup = f"{prefix} 수수료 {fee_rate}% {selected_m} / {amount:,} / {calc_fee:,}"
@@ -128,6 +126,22 @@ if st.session_state.page == 'settle':
         st.caption(f"금액 확인: {warn_bal:,} 원")
         warn_msg = f"Hello, Team\nCurrently, the balance of the merchants is too high.\nTo ensure a safe balance, please proceed with USDT settlement.\nThank you\n\nBalance update\n\n- {selected_m} : {warn_bal:,} krw"
         st.code(warn_msg, language="text")
+
+    # 6. Top-up 요청 (새로 추가된 기능)
+    st.divider()
+    st.markdown('<p class="label" style="color:#2ecc71;">6. Top-up(탑업) 요청 전용</p>', unsafe_allow_html=True)
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        topup_usdt = extract_int(st.text_input("탑업 USDT 수량", value="0"))
+        if topup_usdt > 0: st.caption(f"확인: {topup_usdt:,} USDT")
+    with col_t2:
+        topup_rate = extract_int(st.text_input("탑업 적용 환율", value="0"))
+        if topup_rate > 0: st.caption(f"확인: 1 USDT = {topup_rate:,} KRW")
+    
+    if topup_usdt > 0 and topup_rate > 0:
+        total_krw = topup_usdt * topup_rate
+        topup_msg = f"top-up\n\nmid : {selected_m}\ntop-up amount : {topup_usdt:,} usdt\nexchange to KRW : {total_krw:,} krw\n1usdt = {topup_rate:,} krw\n\n{m_info['wallet']}\n\nPlease check the invoice and transfer the USDT to the address provided."
+        st.code(topup_msg, language="text")
 
 else:
     # 설정 화면 (데이터 보호)
