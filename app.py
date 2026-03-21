@@ -8,14 +8,15 @@ import re
 from datetime import datetime
 
 # ============================================================
-# 정산 매크로 v88.3 - Noah 전용 (정식 잔액 경고 문구 반영)
+# 정산 매크로 v88.4 - Noah 전용 (제목 크기 업그레이드 & 비고란 복구 & 데이터 복구)
 # ============================================================
 
 DB_FILE = "merchants.json"
 
-# --- 데이터 관리 ---
+# --- 데이터 관리 (실장님이 쓰시던 업체 리스트 풀 복구) ---
 def get_default_list():
     return {
+        'spfxm': {'wallet': 'TWbFbzW5GRkAkVrY4fLuXhNA576DCkoGbh', 'fee': '4', 'note': '가장 많이 사용하는 업체'},
         'dr188': {'wallet': 'TBMTb9TFFXDuqhjLKLp9Yo26QHRnnG6jPN', 'fee': '0.5', 'note': '드래곤 메인'},
         'drgtssen': {'wallet': 'TRX_Wallet_drgtssen', 'fee': '0.5', 'note': ''},
         'Dpinnacle': {'wallet': 'TRX_Wallet_Dpinnacle', 'fee': '0.5', 'note': ''},
@@ -27,7 +28,6 @@ def get_default_list():
         'drolymp': {'wallet': 'TRX_Wallet_drolymp', 'fee': '0.5', 'note': ''},
         'drbetkore': {'wallet': 'TRX_Wallet_drbetkore', 'fee': '0.5', 'note': ''},
         'drTapTap': {'wallet': 'TRX_Wallet_drTapTap', 'fee': '0.5', 'note': ''},
-        'spfxm': {'wallet': 'TWbFbzW5GRkAkVrY4fLuXhNA576DCkoGbh', 'fee': '4', 'note': '가장 많이 쓰는 업체'},
         'V99': {'wallet': 'TRX_Wallet_V99', 'fee': '1.5', 'note': 'VVIP 전용'}
     }
 
@@ -37,9 +37,11 @@ def load_data():
         try:
             with open(DB_FILE, "r", encoding="utf-8") as f:
                 db = json.load(f)
+                # 기존 데이터에 비고란이 없는 경우 대비
+                for k in db:
+                    if 'note' not in db[k]: db[k]['note'] = ''
                 return db if len(db) >= 1 else defaults
         except: return defaults
-    save_data(defaults)
     return defaults
 
 def save_data(data):
@@ -64,11 +66,11 @@ def copy_box(text, color_type="blue"):
     c = colors.get(color_type, colors["blue"])
     js_text = json.dumps(text)
     line_count = text.count("\n") + 1
-    height = max(80, line_count * 24 + 50)
+    height = max(80, line_count * 24 + 60)
 
     html_code = f"""
     <div style="position:relative; background:{c['bg']}; border:1px solid #1e3a5f; border-left:4px solid {c['border']}; 
-                border-radius:6px; padding:15px; font-family:monospace; font-size:13.5px; line-height:1.6; color:{c['text']};">
+                border-radius:6px; padding:15px; font-family:monospace; font-size:14px; line-height:1.6; color:{c['text']};">
         <button onclick="copyToClipboard(event)" style="position:absolute; top:10px; right:10px; background:#0f2040; color:#5dade2; 
                 border:1px solid #1e3a5f; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:11px;">📋 복사</button>
         <pre style="margin:0; white-space:pre-wrap; word-break:break-all; font-family:inherit;">{text}</pre>
@@ -91,15 +93,16 @@ def copy_box(text, color_type="blue"):
     components.html(html_code, height=height)
 
 # --- 페이지 설정 ---
-st.set_page_config(page_title="정산 매크로 v88.3", layout="centered")
+st.set_page_config(page_title="정산 매크로 v88.4", layout="centered")
 
 st.markdown("""
 <style>
     [data-testid="stAppViewContainer"] { background-color: #0a0e17 !important; color: #c8d6e5 !important; }
     div[data-baseweb="input"] { background-color: #ffffff !important; border-radius: 6px !important; }
     input { color: #000000 !important; font-weight: bold !important; font-family: monospace !important; }
-    .label-header { color: #4a90d9; font-weight: bold; font-size: 0.85em; border-bottom: 1px solid #1e2d45; padding-bottom: 5px; margin-top: 25px; margin-bottom: 10px; text-transform: uppercase; }
-    .status-val { color: #f1c40f; font-size: 0.8em; margin-top: -10px; margin-bottom: 5px; font-family: monospace; }
+    /* 제목 크기 대폭 확대 */
+    .label-header { color: #4a90d9; font-weight: bold; font-size: 1.2em; border-bottom: 2px solid #1e2d45; padding-bottom: 8px; margin-top: 35px; margin-bottom: 15px; text-transform: uppercase; }
+    .status-val { color: #f1c40f; font-size: 0.9em; margin-top: -12px; margin-bottom: 8px; font-family: monospace; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -112,7 +115,10 @@ with st.sidebar:
     if st.button("🚀 정산 작업"): st.session_state.page = 'settle'
     if st.button("⚙️ 머천트 설정"): st.session_state.page = 'admin'
     st.divider()
-    st.caption(f"접속 시간: {datetime.now().strftime('%H:%M:%S')}")
+    if st.button("⚠️ 데이터 초기화 (복구)"):
+        st.session_state.db = get_default_list()
+        save_data(st.session_state.db)
+        st.rerun()
 
 # --- 메인 페이지 ---
 if st.session_state.page == 'settle':
@@ -122,6 +128,10 @@ if st.session_state.page == 'settle':
     default_idx = sorted_keys.index('spfxm') if 'spfxm' in sorted_keys else 0
     selected_m = st.selectbox("업체 선택", sorted_keys, index=default_idx)
     m_info = st.session_state.db[selected_m]
+    
+    # 비고 표시 (있을 경우만)
+    if m_info.get('note'):
+        st.info(f"📌 메모: {m_info['note']}")
     
     # 01. 환율 설정
     st.markdown('<div class="label-header">01. 환율 설정</div>', unsafe_allow_html=True)
@@ -158,7 +168,7 @@ if st.session_state.page == 'settle':
 
     # 04. 수수료 마크업
     if amount > 0:
-        st.markdown('<div class="label-header">04. 수수료 마크업</div>', unsafe_allow_html=True)
+        st.markdown('<div class="label-header">04. 수수료 마크업 (내부용)</div>', unsafe_allow_html=True)
         fee_rate = float(m_info.get('fee', 0.5))
         calc_fee = math.ceil(amount * (fee_rate / 100))
         dragon_list = ['dr188', 'drgtssen', 'Dpinnacle', 'drSpinmama', 'drbetssen', 'NextbetM/G', 'DafabetM/G', 'drgtkore', 'drolymp', 'drbetkore', 'drTapTap', 'spfxm']
@@ -166,12 +176,11 @@ if st.session_state.page == 'settle':
         markup_msg = f"{prefix} 수수료 {fee_rate}% {selected_m} / {fmt(amount)} / {fmt(calc_fee)}"
         copy_box(markup_msg, "yellow")
 
-    # 05. 정식 잔액 경고 (Balance Warning) - 실장님 요청 문구 반영
+    # 05. 잔액 경고 (Balance Warning)
     st.markdown('<div class="label-header" style="color:#e74c3c;">05. 잔액 경고 (정식 안내)</div>', unsafe_allow_html=True)
     warn_bal = extract_int(st.text_input("경고용 잔액 입력 (KRW)"))
     if warn_bal > 0:
         st.markdown(f'<div class="status-val">→ {fmt(warn_bal)} 원</div>', unsafe_allow_html=True)
-        # 실장님이 요청하신 정식 멘트
         warn_msg = (
             f"Hello, Team\n"
             f"Currently, the balance of the merchants is too high.\n"
@@ -182,7 +191,7 @@ if st.session_state.page == 'settle':
         )
         copy_box(warn_msg, "red")
 
-    # 06. 탑업 요청 (이하 동일)
+    # 06. TOP-UP 요청
     st.divider()
     st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
     topup_usdt = extract_int(st.text_input("탑업 USDT 수량"))
@@ -204,22 +213,31 @@ if st.session_state.page == 'settle':
         copy_box(f"드래곤 테더탑업 수수료 0.5% {selected_m} / {fmt(topup_usdt * base_rate)} / {fmt(total_fee_krw)}", "yellow")
 
 else:
-    # 관리자 화면 (이전 버전과 동일)
+    # 관리자 화면 (비고란 추가)
     st.title("⚙️ 머천트 설정 관리")
     with st.form("new_m"):
+        st.subheader("➕ 신규 업체 등록")
         n_name = st.text_input("업체 이름")
         n_wallet = st.text_input("지갑 주소")
         n_fee = st.text_input("수수료 (%)", value="0.5")
+        n_note = st.text_input("비고 (메모)")
         if st.form_submit_button("등록"):
             if n_name and n_wallet:
-                st.session_state.db[n_name] = {"wallet": n_wallet, "fee": n_fee}
+                st.session_state.db[n_name] = {"wallet": n_wallet, "fee": n_fee, "note": n_note}
                 save_data(st.session_state.db); st.rerun()
     st.divider()
     for name in sorted(st.session_state.db.keys()):
-        with st.expander(f"📦 {name}"):
+        with st.expander(f"📦 {name} ({st.session_state.db[name].get('note', '')})"):
             info = st.session_state.db[name]
             u_w = st.text_input("지갑", value=info['wallet'], key=f"w_{name}")
             u_f = st.text_input("요율", value=info['fee'], key=f"f_{name}")
-            if st.button("저장", key=f"s_{name}"):
-                st.session_state.db[name] = {"wallet": u_w, "fee": u_f}
-                save_data(st.session_state.db); st.rerun()
+            u_n = st.text_input("비고", value=info.get('note', ''), key=f"n_{name}")
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("저장", key=f"s_{name}"):
+                    st.session_state.db[name] = {"wallet": u_w, "fee": u_f, "note": u_n}
+                    save_data(st.session_state.db); st.rerun()
+            with c2:
+                if st.button("삭제", key=f"d_{name}"):
+                    del st.session_state.db[name]
+                    save_data(st.session_state.db); st.rerun()
