@@ -7,7 +7,7 @@ import os
 import re
 
 # ============================================================
-# 정산 매크로 v89.2 - Noah 전용 (안정성 최우선 / 군더더기 제거)
+# 정산 매크로 v89.4 - Noah 전용 (누락 문구 복구 및 최종 안정화)
 # ============================================================
 
 DB_FILE = "merchants.json"
@@ -81,15 +81,15 @@ def copy_box(text, color_type="blue"):
     """
     components.html(html_code, height=height)
 
-st.set_page_config(page_title="정산 매크로 v89.2", layout="centered")
+st.set_page_config(page_title="정산 매크로 v89.4", layout="centered")
 
 st.markdown("""
 <style>
     [data-testid="stAppViewContainer"] { background-color: #0a0e17 !important; color: #c8d6e5 !important; }
-    div[data-baseweb="input"] { background-color: #ffffff !important; border-radius: 6px !important; }
+    div[data-baseweb="input"] { background-color: #f1c40f !important; border-radius: 6px !important; }
     input { color: #000000 !important; font-weight: bold !important; font-family: monospace !important; font-size: 1.1em !important; }
     .label-header { color: #4a90d9; font-weight: bold; font-size: 1.25em; border-bottom: 2px solid #1e2d45; padding-bottom: 8px; margin-top: 35px; margin-bottom: 15px; text-transform: uppercase; }
-    .payout-rate-box { color: #5dade2; font-size: 1.1em; font-weight: bold; margin-top: 10px; font-family: monospace; }
+    .payout-rate-box { color: #5dade2; font-size: 1.2em; font-weight: bold; margin-top: 32px; font-family: monospace; text-align: center; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -131,7 +131,8 @@ if st.session_state.page == 'settle':
     
     if amount > 0:
         usdt_val = round(amount / current_rate, 2)
-        settle_msg = f"- {selected_m} settlement amount : {fmt(amount)} krw\n- exchange to usdt : {usdt_val:,.2f} usdt\n- 1usdt = {fmt(current_rate)} krw\n\n{m_info['wallet']}\n\nPlease confirm the address and calculation."
+        # 요청 문구 복구
+        settle_msg = f"- {selected_m} settlement amount : {fmt(amount)} krw\n- exchange to usdt : {usdt_val:,.2f} usdt\n- 1usdt = {fmt(current_rate)} krw\n\n{m_info['wallet']}\n\nPlease confirm the address and calculation.\nOnce approved, we will proceed immediately"
         copy_box(settle_msg, "blue")
 
     # 03. 최종 잔액 보고
@@ -161,6 +162,7 @@ if st.session_state.page == 'settle':
         if ts_rate > 0: final_t_rate = ts_rate
         elif tm_rate > 0: final_t_rate = tm_rate - math.ceil(tm_rate * 0.005)
         else: final_t_rate = 0
+        
         if final_t_rate > 0:
             st.markdown(f'<div class="payout-rate-box">1usdt = {fmt(final_t_rate)} krw >>> 적용 환율</div>', unsafe_allow_html=True)
 
@@ -175,7 +177,6 @@ if st.session_state.page == 'settle':
         copy_box(f"드래곤 테더탑업 수수료 {m_fee_rate}% {selected_m} / {fmt(topup_usdt * base_rate)} / {fmt(total_fee_krw)}", "yellow")
 
 else:
-    # 관리 페이지
     st.title("⚙️ 머천트 설정 관리")
     with st.form("new_m"):
         st.subheader("➕ 신규 업체 등록")
