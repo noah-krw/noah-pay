@@ -7,7 +7,7 @@ import os
 import re
 
 # ============================================================
-# 정산 매크로 v90.2 - Noah 전용 (데이터 초기화 복구 및 가변 박스)
+# 정산 매크로 v90.3 - Noah 전용 (보고 멘트 최종 원복 및 누락 방지)
 # ============================================================
 
 DB_FILE = "merchants.json"
@@ -86,7 +86,7 @@ def copy_box(text, color_type="blue", key=None):
         components.html(js_code, height=0)
         st.toast("복사 완료!")
 
-st.set_page_config(page_title="정산 매크로 v90.2", layout="centered")
+st.set_page_config(page_title="정산 매크로 v90.3", layout="centered")
 
 st.markdown("""
 <style>
@@ -105,11 +105,9 @@ with st.sidebar:
     if st.button("🚀 정산 작업"): st.session_state.page = 'settle'; st.rerun()
     if st.button("⚙️ 머천트 관리"): st.session_state.page = 'admin'; st.rerun()
     st.divider()
-    # 사라졌던 데이터 초기화(복구) 버튼 다시 살렸습니다
     if st.button("⚠️ 데이터 초기화 (복구)"):
         st.session_state.db = get_default_list()
         save_data(st.session_state.db)
-        st.success("데이터가 초기화되었습니다.")
         st.rerun()
 
 if st.session_state.page == 'settle':
@@ -119,7 +117,6 @@ if st.session_state.page == 'settle':
     selected_m = st.selectbox("업체 선택", sorted_keys, index=default_idx)
     m_info = st.session_state.db[selected_m]
     
-    # 01. 환율
     st.markdown('<div class="label-header">01. 환율 설정</div>', unsafe_allow_html=True)
     multiplier = st.radio("적용 배수", [1.04, 1.045, 1.05], horizontal=True)
     c1, c2 = st.columns(2)
@@ -128,7 +125,6 @@ if st.session_state.page == 'settle':
     current_rate = s_val if s_val > 0 else math.ceil(b_val * multiplier)
     if current_rate > 0: copy_box(f"1 USDT = {fmt(current_rate)} KRW", "blue", key="rate_res")
 
-    # 02. 정산 요청
     st.markdown('<div class="label-header">02. 정산 요청</div>', unsafe_allow_html=True)
     amount = extract_int(st.text_input("정산 금액 (KRW)", key="amt_in"))
     if amount > 0:
@@ -136,7 +132,6 @@ if st.session_state.page == 'settle':
         settle_msg = f"- {selected_m} settlement amount : {fmt(amount)} krw\n- exchange to usdt : {usdt_val:,.2f} usdt\n- 1usdt = {fmt(current_rate)} krw\n\n{m_info['wallet']}\n\nPlease confirm the address and calculation.\nOnce approved, we will proceed immediately"
         copy_box(settle_msg, "blue", key="settle_res")
 
-    # 03. 최종 잔액 보고
     st.markdown('<div class="label-header">03. 최종 잔액 보고</div>', unsafe_allow_html=True)
     balance = extract_int(st.text_input("현재 잔액 입력 (KRW)", key="bal_in"))
     if balance > 0:
@@ -144,21 +139,19 @@ if st.session_state.page == 'settle':
         balance_msg = f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {fmt(amount)} krw\nexchange to usdt : {fmt(usdt_ceil)} usdt\n1usdt = {fmt(current_rate)} krw\n\n- {selected_m} : {fmt(balance)} krw"
         copy_box(balance_msg, "green", key="balance_res")
 
-    # 04. 마크업 수수료
-    st.markdown('<div class="label-header">04. 마크업 수수료 계산</div>', unsafe_allow_html=True)
+    st.markdown('<div class="label-header">04. 수수료 보고</div>', unsafe_allow_html=True)
     m_fee_rate = float(m_info.get('fee', 0.5))
     markup_fee = math.ceil(amount * (m_fee_rate / 100))
     if amount > 0:
-        copy_box(f"마크업 수수료 {m_fee_rate}% {selected_m} / {fmt(amount)} / {fmt(markup_fee)}", "yellow", key="markup_res")
+        # 지시하신 형식으로 멘트 고정
+        copy_box(f"드래곤 테더정산 수수료 {m_fee_rate}% {selected_m} / {fmt(amount)} / {fmt(markup_fee)}", "yellow", key="markup_res")
 
-    # 05. 잔액 경고
     st.markdown('<div class="label-header" style="color:#e74c3c;">05. 잔액 경고</div>', unsafe_allow_html=True)
     warn_bal = extract_int(st.text_input("경고용 잔액 입력", key="warn_in"))
     if warn_bal > 0:
         warn_msg = f"Hello, Team\nCurrently, the balance of the merchants is too high.\nTo ensure a safe balance, please proceed with USDT settlement.\nThank you\n\nBalance update\n\n- {selected_m} : {fmt(warn_bal)} krw"
         copy_box(warn_msg, "red", key="warn_res")
 
-    # 06. TOP-UP
     st.divider()
     st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
     cl, cr = st.columns([1, 1.2]) 
@@ -176,15 +169,16 @@ if st.session_state.page == 'settle':
         copy_box(f"top-up\n\nmid : {selected_m}\ntop-up amount : {fmt(topup_usdt)} usdt\nexchange to KRW : {fmt(total_krw)} krw\n1usdt = {fmt(final_t_rate)} krw\n\n{m_info['wallet']}", "green", key="topup_res")
         base_rate = ts_rate if ts_rate > 0 else tm_rate
         t_markup = math.ceil((topup_usdt * base_rate) * (m_fee_rate / 100))
+        # 탑업 멘트도 고정
         copy_box(f"드래곤 테더탑업 수수료 {m_fee_rate}% {selected_m} / {fmt(topup_usdt * base_rate)} / {fmt(t_markup)}", "yellow", key="topup_fee_res")
 
 elif st.session_state.page == 'admin':
+    # 머천트 관리 페이지 생략 (동일함)
     st.title("⚙️ 머천트 설정 관리")
     with st.form("new_m"):
-        st.subheader("➕ 신규 업체 등록")
         n_name = st.text_input("업체 이름")
         n_wallet = st.text_input("지갑 주소")
-        n_fee = st.text_input("마크업 수수료 (요율) %", value="0.5")
+        n_fee = st.text_input("수수료 요율 %", value="0.5")
         if st.form_submit_button("등록"):
             if n_name and n_wallet:
                 st.session_state.db[n_name] = {"wallet": n_wallet, "fee": n_fee}
@@ -194,7 +188,7 @@ elif st.session_state.page == 'admin':
         with st.expander(f"📦 {name}"):
             info = st.session_state.db[name]
             u_w = st.text_input("지갑 주소", value=info['wallet'], key=f"w_{name}")
-            u_f = st.text_input("마크업 수수료 (요율) %", value=info['fee'], key=f"f_{name}")
+            u_f = st.text_input("요율", value=info['fee'], key=f"f_{name}")
             c1, c2 = st.columns(2)
             with c1:
                 if st.button("저장", key=f"s_{name}"):
