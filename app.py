@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 
 # ============================================================
-# 정산 매크로 v88.6 - Noah 전용 (탑업 구도 완성 & '저장' 버튼 오타 수정)
+# 정산 매크로 v88.7 - Noah 전용 ('마크업 요율' 명칭 통일 및 완성본)
 # ============================================================
 
 DB_FILE = "merchants.json"
@@ -81,7 +81,7 @@ def copy_box(text, color_type="blue"):
     """
     components.html(html_code, height=height)
 
-st.set_page_config(page_title="정산 매크로 v88.6", layout="centered")
+st.set_page_config(page_title="정산 매크로 v88.7", layout="centered")
 
 st.markdown("""
 <style>
@@ -138,23 +138,18 @@ if st.session_state.page == 'settle':
         warn_msg = f"Hello, Team\nCurrently, the balance of the merchants is too high.\nTo ensure a safe balance, please proceed with USDT settlement.\nThank you\n\nBalance update\n\n- {selected_m} : {fmt(warn_bal)} krw"
         copy_box(warn_msg, "red")
 
-    # 06. TOP-UP 요청 (이미지 구도 반영)
+    # 06. TOP-UP 요청
     st.divider()
     st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
-    
     col_left, col_right = st.columns([1, 1.2]) 
-    
     with col_left:
         tm_rate = extract_int(st.text_input("탑업 빗썸 시세", key="tm_rate"))
         ts_rate = extract_int(st.text_input("탑업 수동 환율", key="ts_rate"))
-        
     with col_right:
         topup_usdt = extract_int(st.text_input("탑업 USDT 수량", key="t_usdt"))
-        
         if ts_rate > 0: final_t_rate = ts_rate
         elif tm_rate > 0: final_t_rate = tm_rate - math.ceil(tm_rate * 0.005)
         else: final_t_rate = 0
-        
         if final_t_rate > 0:
             st.markdown(f'<div class="payout-rate-box">1usdt = {fmt(final_t_rate)} krw >>> 적용 환율</div>', unsafe_allow_html=True)
 
@@ -164,17 +159,18 @@ if st.session_state.page == 'settle':
         copy_box(topup_msg, "green")
         
         base_rate = ts_rate if ts_rate > 0 else tm_rate
-        total_fee_krw = math.ceil((topup_usdt * base_rate) * 0.005)
-        copy_box(f"드래곤 테더탑업 수수료 0.5% {selected_m} / {fmt(topup_usdt * base_rate)} / {fmt(total_fee_krw)}", "yellow")
+        # 여기서 m_info['fee']를 사용 (마크업 요율)
+        m_fee_rate = float(m_info.get('fee', 0.5))
+        total_fee_krw = math.ceil((topup_usdt * base_rate) * (m_fee_rate / 100))
+        copy_box(f"드래곤 테더탑업 수수료 {m_fee_rate}% {selected_m} / {fmt(topup_usdt * base_rate)} / {fmt(total_fee_krw)}", "yellow")
 
 else:
-    # 관리 페이지 (비고란/저장 버튼 수정)
     st.title("⚙️ 머천트 설정 관리")
     with st.form("new_m"):
         st.subheader("➕ 신규 업체 등록")
         n_name = st.text_input("업체 이름")
         n_wallet = st.text_input("지갑 주소")
-        n_fee = st.text_input("수수료 (%)", value="0.5")
+        n_fee = st.text_input("마크업 요율 (%)", value="0.5") # 명칭 수정
         n_note = st.text_input("비고 (메모)")
         if st.form_submit_button("등록"):
             if n_name and n_wallet:
@@ -184,12 +180,12 @@ else:
     for name in sorted(st.session_state.db.keys()):
         with st.expander(f"📦 {name} {' - ' + st.session_state.db[name].get('note','') if st.session_state.db[name].get('note') else ''}"):
             info = st.session_state.db[name]
-            u_w = st.text_input("지갑", value=info['wallet'], key=f"w_{name}")
-            u_f = st.text_input("요율", value=info['fee'], key=f"f_{name}")
+            u_w = st.text_input("지갑 주소", value=info['wallet'], key=f"w_{name}")
+            u_f = st.text_input("마크업 요율 (%)", value=info['fee'], key=f"f_{name}") # 명칭 수정
             u_n = st.text_input("비고", value=info.get('note', ''), key=f"n_{name}")
             c1, c2 = st.columns(2)
             with c1:
-                if st.button("저장", key=f"s_{name}"): # '저가장' 수정 완료
+                if st.button("저장", key=f"s_{name}"):
                     st.session_state.db[name] = {"wallet": u_w, "fee": u_f, "note": u_n}
                     save_data(st.session_state.db); st.rerun()
             with c2:
