@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import streamlit as st
 import streamlit.components.v1 as components
 import math
@@ -94,10 +95,10 @@ body{{background:transparent;font-family:'IBM Plex Mono','Courier New',monospace
   <button class="btn" id="btn" onclick="
     navigator.clipboard.writeText({js_text}).then(function(){{
       var b=document.getElementById('btn');
-      b.innerText='\u2705 \ubcf5\uc0ac\ub428';b.style.color='#27ae60';
-      setTimeout(function(){{b.innerText='\ud83d\udccb \ubcf5\uc0ac';b.style.color='';
+      b.innerText='✅ 복사됨';b.style.color='#27ae60';
+      setTimeout(function(){{b.innerText='📋 복사';b.style.color='';
       }},1500);
-    }});">\ud83d\udccb \ubcf5\uc0ac</button>{text}</div>
+    }});">📋 복사</button>{text}</div>
 </body></html>"""
     components.html(html_code, height=height, scrolling=False)
 
