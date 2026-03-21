@@ -33,19 +33,22 @@ def get_default_list():
     }
 
 def load_data():
+    # DB 파일이 있으면 항상 파일 우선
+    if os.path.exists(DB_FILE):
+        try:
+            with open(DB_FILE, "r", encoding="utf-8") as f:
+                db = json.load(f)
+            if db and len(db) >= 1:
+                for k, v in db.items():
+                    if 'group' not in v:
+                        v['group'] = 'dragon' if (k.startswith('dr') or k in ['NextbetM/G','DafabetM/G','Dpinnacle']) else 'general'
+                return db
+        except Exception:
+            pass
+    # 파일 없거나 파싱 실패 시 기본값으로 생성
     defaults = get_default_list()
-    if not os.path.exists(DB_FILE):
-        save_data(defaults)
-        return defaults
-    try:
-        with open(DB_FILE, "r", encoding="utf-8") as f:
-            db = json.load(f)
-            for k, v in db.items():
-                if 'group' not in v:
-                    v['group'] = 'dragon' if (k.startswith('dr') or k in ['NextbetM/G','DafabetM/G','Dpinnacle']) else 'general'
-            return db if len(db) >= 1 else defaults
-    except Exception:
-        return defaults
+    save_data(defaults)
+    return defaults
 
 def save_data(data):
     with open(DB_FILE, "w", encoding="utf-8") as f:
@@ -79,7 +82,7 @@ def copy_box(text: str, color: str = "blue"):
     line_count = text.count("\n") + 1
     height = max(72, line_count * 23 + 52)
 
-    html_code = f"""<!DOCTYPE html><html><head><style>
+    html_code = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 *{{margin:0;padding:0;box-sizing:border-box;}}
 body{{background:transparent;font-family:'IBM Plex Mono','Courier New',monospace;}}
 .wrap{{position:relative;background:#060d18;border:1px solid #1e3a5f;
@@ -92,13 +95,36 @@ body{{background:transparent;font-family:'IBM Plex Mono','Courier New',monospace
 .btn:hover{{background:#1a3a6c;color:#a8d4f5;}}
 </style></head><body>
 <div class="wrap">
-  <button class="btn" id="btn" onclick="
-    navigator.clipboard.writeText({js_text}).then(function(){{
-      var b=document.getElementById('btn');
-      b.innerText='✅ 복사됨';b.style.color='#27ae60';
-      setTimeout(function(){{b.innerText='📋 복사';b.style.color='';
-      }},1500);
-    }});">📋 복사</button>{text}</div>
+  <button class="btn" id="btn" onclick="copyText()">📋 복사</button>
+  <span id="content">{text}</span>
+</div>
+<script>
+function copyText() {{
+  var txt = {js_text};
+  var btn = document.getElementById('btn');
+  function onSuccess() {{
+    btn.innerText = '✅ 복사됨';
+    btn.style.color = '#27ae60';
+    setTimeout(function(){{ btn.innerText = '📋 복사'; btn.style.color = ''; }}, 1500);
+  }}
+  if (navigator.clipboard && navigator.clipboard.writeText) {{
+    navigator.clipboard.writeText(txt).then(onSuccess).catch(function() {{ fallback(txt, onSuccess); }});
+  }} else {{
+    fallback(txt, onSuccess);
+  }}
+}}
+function fallback(txt, cb) {{
+  var ta = document.createElement('textarea');
+  ta.value = txt;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {{ document.execCommand('copy'); cb(); }} catch(e) {{}}
+  document.body.removeChild(ta);
+}}
+</script>
 </body></html>"""
     components.html(html_code, height=height, scrolling=False)
 
