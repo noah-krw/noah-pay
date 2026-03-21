@@ -70,26 +70,76 @@ st.set_page_config(page_title="정산 매크로 v2.0", layout="wide", page_icon=
 # ─── 복사 버튼 컴포넌트 ───────────────────────────────────
 
 def copy_box(text: str, box_class: str = ""):
-    """결과 텍스트 박스 + 우상단 복사 버튼"""
-    import html as html_lib
-    escaped = html_lib.escape(text)
-    # JS용 이스케이프 (개행/따옴표)
-    js_text = text.replace("\\", "\\\\").replace("`", "\\`").replace("$", "\\$")
-    uid = abs(hash(text)) % 999999
+    """결과 텍스트 박스 + 복사 버튼 - components.v1.html 방식"""
+    import streamlit.components.v1 as components
+    import json
 
-    st.markdown(f"""
-<div class="copy-wrap {box_class}" id="wrap_{uid}">
-  <button class="copy-btn" onclick="
-    navigator.clipboard.writeText(\`{js_text}\`).then(function(){{
-      var b = document.getElementById('btn_{uid}');
-      b.innerText='✅ 복사됨';
-      b.style.color='#27ae60';
-      setTimeout(function(){{b.innerText='📋 복사'; b.style.color='';}} ,1500);
+    color_map = {
+        "":       {"border": "#4a90d9", "text": "#a8c7e8"},
+        "green":  {"border": "#27ae60", "text": "#7dcea0"},
+        "yellow": {"border": "#f39c12", "text": "#f8c471"},
+        "red":    {"border": "#e74c3c", "text": "#f1948a"},
+    }
+    c = color_map.get(box_class, color_map[""])
+    # JSON 직렬화로 안전하게 JS에 전달
+    js_text = json.dumps(text)
+
+    html_code = f"""
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  * {{ margin:0; padding:0; box-sizing:border-box; }}
+  body {{ background: transparent; }}
+  .wrap {{
+    position: relative;
+    background: #060d18;
+    border: 1px solid #1e3a5f;
+    border-left: 3px solid {c['border']};
+    border-radius: 6px;
+    padding: 12px 80px 12px 14px;
+    font-family: 'IBM Plex Mono', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.75;
+    color: {c['text']};
+    white-space: pre-wrap;
+    word-break: break-all;
+  }}
+  .btn {{
+    position: absolute;
+    top: 8px; right: 8px;
+    background: #0f2040;
+    color: #5dade2;
+    border: 1px solid #1e3a5f;
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-family: monospace;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }}
+  .btn:hover {{ background: #1a3a6c; color: #a8d4f5; }}
+</style>
+</head>
+<body>
+<div class="wrap" id="box">
+  <button class="btn" id="btn" onclick="
+    navigator.clipboard.writeText({js_text}).then(function(){{
+      document.getElementById('btn').innerText = '✅ 복사됨';
+      document.getElementById('btn').style.color = '#27ae60';
+      setTimeout(function(){{
+        document.getElementById('btn').innerText = '📋 복사';
+        document.getElementById('btn').style.color = '';
+      }}, 1500);
     }});
-  " id="btn_{uid}">📋 복사</button>
-  <pre class="result-pre">{escaped}</pre>
-</div>
-""", unsafe_allow_html=True)
+  ">📋 복사</button>{text}</div>
+</body>
+</html>
+"""
+    # 높이: 줄 수 기반 자동 계산
+    line_count = text.count("\n") + 1
+    height = max(70, line_count * 24 + 50)
+    components.html(html_code, height=height, scrolling=False)
 
 st.markdown("""
 <style>
