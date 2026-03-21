@@ -67,6 +67,30 @@ DRAGON_KEYS = {'dr188','drgtssen','Dpinnacle','drSpinmama','drbetssen',
 
 st.set_page_config(page_title="정산 매크로 v2.0", layout="wide", page_icon="💹")
 
+# ─── 복사 버튼 컴포넌트 ───────────────────────────────────
+
+def copy_box(text: str, box_class: str = ""):
+    """결과 텍스트 박스 + 우상단 복사 버튼"""
+    import html as html_lib
+    escaped = html_lib.escape(text)
+    # JS용 이스케이프 (개행/따옴표)
+    js_text = text.replace("\\", "\\\\").replace("`", "\\`").replace("$", "\\$")
+    uid = abs(hash(text)) % 999999
+
+    st.markdown(f"""
+<div class="copy-wrap {box_class}" id="wrap_{uid}">
+  <button class="copy-btn" onclick="
+    navigator.clipboard.writeText(\`{js_text}\`).then(function(){{
+      var b = document.getElementById('btn_{uid}');
+      b.innerText='✅ 복사됨';
+      b.style.color='#27ae60';
+      setTimeout(function(){{b.innerText='📋 복사'; b.style.color='';}} ,1500);
+    }});
+  " id="btn_{uid}">📋 복사</button>
+  <pre class="result-pre">{escaped}</pre>
+</div>
+""", unsafe_allow_html=True)
+
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@300;400;600&display=swap');
@@ -102,24 +126,51 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
     padding-bottom: 8px;
 }
 
-/* ── 결과 코드 박스 ── */
-.result-box {
+/* ── 복사 래퍼 ── */
+.copy-wrap {
+    position: relative;
     background: #060d18;
     border: 1px solid #1e3a5f;
     border-left: 3px solid #4a90d9;
     border-radius: 6px;
+    margin-top: 10px;
+    margin-bottom: 4px;
+}
+.copy-wrap.green  { border-left-color: #27ae60; }
+.copy-wrap.yellow { border-left-color: #f39c12; }
+.copy-wrap.red    { border-left-color: #e74c3c; }
+
+.copy-btn {
+    position: absolute;
+    top: 8px; right: 10px;
+    background: #0f2040;
+    color: #5dade2;
+    border: 1px solid #1e3a5f;
+    border-radius: 4px;
+    padding: 2px 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    z-index: 10;
+}
+.copy-btn:hover { background: #1a3a6c; border-color: #4a90d9; color: #a8d4f5; }
+
+.result-pre {
     padding: 14px 16px;
+    padding-right: 80px;
     font-family: 'IBM Plex Mono', monospace;
     font-size: 0.85em;
     line-height: 1.7;
     color: #a8c7e8;
     white-space: pre-wrap;
     word-break: break-all;
-    margin-top: 10px;
+    margin: 0;
 }
-.result-box.green  { border-left-color: #27ae60; color: #7dcea0; }
-.result-box.yellow { border-left-color: #f39c12; color: #f8c471; }
-.result-box.red    { border-left-color: #e74c3c; color: #f1948a; }
+.copy-wrap.green  .result-pre { color: #7dcea0; }
+.copy-wrap.yellow .result-pre { color: #f8c471; }
+.copy-wrap.red    .result-pre { color: #f1948a; }
 
 /* ── 요율 배지 ── */
 .badge {
@@ -317,7 +368,7 @@ if st.session_state.page == 'settle':
                 f"Please confirm the address and calculation.\n"
                 f"Once approved, we will proceed immediately"
             )
-            st.markdown(f'<div class="result-box">{settle_msg}</div>', unsafe_allow_html=True)
+            copy_box(settle_msg)
         elif amount > 0 and current_rate == 0:
             st.warning("환율을 먼저 입력해 주세요.")
         st.markdown('</div>', unsafe_allow_html=True)
@@ -331,7 +382,7 @@ if st.session_state.page == 'settle':
         balance = extract_int(bal_raw)
 
         if balance > 0 and amount > 0 and current_rate > 0:
-            usdt_ceil  = math.ceil(amount / current_rate)
+            usdt_ceil   = math.ceil(amount / current_rate)
             balance_msg = (
                 f"Balance & settlement update\n\n"
                 f"- {selected_m}\n"
@@ -340,7 +391,7 @@ if st.session_state.page == 'settle':
                 f"1usdt = {fmt(current_rate)} krw\n\n"
                 f"- {selected_m} : {fmt(balance)} krw"
             )
-            st.markdown(f'<div class="result-box green">{balance_msg}</div>', unsafe_allow_html=True)
+            copy_box(balance_msg, "green")
         elif balance > 0:
             st.info("정산 금액과 환율도 입력해 주세요.")
         st.markdown('</div>', unsafe_allow_html=True)
@@ -351,7 +402,7 @@ if st.session_state.page == 'settle':
             calc_fee   = math.ceil(amount * (fee_rate / 100))
             prefix     = "드래곤 테더정산" if selected_m in DRAGON_KEYS else "일반 테더정산"
             markup_msg = f"{prefix} 수수료 {fee_rate}% {selected_m} / {fmt(amount)} / {fmt(calc_fee)}"
-            st.markdown(f'<div class="result-box yellow">{markup_msg}</div>', unsafe_allow_html=True)
+            copy_box(markup_msg, "yellow")
         else:
             st.markdown("<small style='color:#2a4060;'>정산 금액을 입력하면 자동 생성됩니다.</small>", unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
@@ -362,7 +413,7 @@ if st.session_state.page == 'settle':
         warn_bal = extract_int(warn_raw)
         if warn_bal > 0:
             warn_msg = f"Balance update - {selected_m} : {fmt(warn_bal)} krw"
-            st.markdown(f'<div class="result-box red">{warn_msg}</div>', unsafe_allow_html=True)
+            copy_box(warn_msg, "red")
         st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -419,16 +470,15 @@ elif st.session_state.page == 'topup':
                 f"{m_info['wallet']}\n\n"
                 f"Please check the invoice and transfer the USDT to the address provided."
             )
-            st.markdown(f'<div class="result-box green">{topup_msg}</div>', unsafe_allow_html=True)
+            copy_box(topup_msg, "green")
 
             st.markdown("---")
-            # 수수료 마크업 자동 표시
-            base_rate      = t_manual if t_manual > 0 else t_market
+            base_rate = t_manual if t_manual > 0 else t_market
             if base_rate > 0:
-                total_market   = topup_usdt * base_rate
-                total_fee      = math.ceil(total_market * 0.005)
-                markup_msg     = f"드래곤 테더탑업 수수료 0.5% {selected_m} / {fmt(total_market)} / {fmt(total_fee)}"
-                st.markdown(f'<div class="result-box yellow">{markup_msg}</div>', unsafe_allow_html=True)
+                total_market = topup_usdt * base_rate
+                total_fee    = math.ceil(total_market * 0.005)
+                markup_msg   = f"드래곤 테더탑업 수수료 0.5% {selected_m} / {fmt(total_market)} / {fmt(total_fee)}"
+                copy_box(markup_msg, "yellow")
 
         elif topup_usdt > 0 and final_rate == 0:
             st.warning("환율을 입력해 주세요.")
