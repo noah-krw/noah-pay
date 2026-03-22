@@ -418,43 +418,49 @@ if st.session_state.page == 'settle':
             if r1.json().get('status') == '0000':
                 bithumb = int(float(r1.json()['data']['closing_price']))
         except: pass
-        # 김프 = 업비트 USDT ÷ USD/KRW 매매기준율 - 1
-        # 환율 우선순위: 수출입은행 → frankfurter → 빗썸 fallback
+
+        # 김프 = (업비트 BTC/KRW - OKX BTC/USDT × 환율) / (OKX BTC/USDT × 환율) × 100
         try:
-            r2 = requests.get('https://api.upbit.com/v1/ticker?markets=KRW-USDT', timeout=3)
-            upbit_usdt = float(r2.json()[0]['trade_price'])
+            # 업비트 BTC/KRW
+            r2 = requests.get('https://api.upbit.com/v1/ticker?markets=KRW-BTC', timeout=3)
+            upbit_btc = float(r2.json()[0]['trade_price'])
+
+            # OKX BTC/USDT (바이낸스 대체)
+            r3 = requests.get('https://www.okx.com/api/v5/market/ticker?instId=BTC-USDT', timeout=3)
+            okx_btc = float(r3.json()['data'][0]['last'])
+
+            # 환율: 수출입은행 → frankfurter → 빗썸 순
             usd_krw = 0
-            # 1순위: 수출입은행
             try:
                 exim_key = st.secrets.get('EXIM_API_KEY', '')
                 if exim_key:
                     for days_ago in range(0, 4):
                         date = (datetime.datetime.now() - datetime.timedelta(days=days_ago)).strftime('%Y%m%d')
-                        r3 = requests.get(
+                        r4 = requests.get(
                             f'https://www.koreaexim.go.kr/site/program/financial/exchangeJSON'
                             f'?authkey={exim_key}&searchdate={date}&data=AP01',
                             timeout=3
                         )
-                        data3 = r3.json()
-                        if data3:
-                            for item in data3:
+                        data4 = r4.json()
+                        if data4:
+                            for item in data4:
                                 if item.get('cur_unit') == 'USD':
                                     usd_krw = float(item['deal_bas_r'].replace(',', ''))
                                     break
                         if usd_krw > 0:
                             break
             except: pass
-            # 2순위: frankfurter
             if usd_krw == 0:
                 try:
-                    r4 = requests.get('https://api.frankfurter.app/latest?from=USD&to=KRW', timeout=3)
-                    usd_krw = float(r4.json()['rates']['KRW'])
+                    r5 = requests.get('https://api.frankfurter.app/latest?from=USD&to=KRW', timeout=3)
+                    usd_krw = float(r5.json()['rates']['KRW'])
                 except: pass
-            # 3순위: 빗썸 USDT fallback
-            if usd_krw == 0 and bithumb and bithumb > 0:
+            if usd_krw == 0 and bithumb:
                 usd_krw = bithumb
-            if usd_krw > 0 and upbit_usdt > 0:
-                kimchi = round(((upbit_usdt / usd_krw) - 1) * 100, 2)
+
+            if upbit_btc > 0 and okx_btc > 0 and usd_krw > 0:
+                global_price = okx_btc * usd_krw
+                kimchi = round(((upbit_btc - global_price) / global_price) * 100 - 0.1, 2)
         except: pass
         return bithumb, kimchi
 
