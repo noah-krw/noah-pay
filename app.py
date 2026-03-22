@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import streamlit as st
 import streamlit.components.v1 as components
-import math, json, os, re
+import math, json, os, re, requests, time
 
 # ============================================================
 # 정산 매크로 v97.0 - [디자인 개선: 헤더, 복사버튼, 텍스트박스, 입력필드]
@@ -391,6 +391,11 @@ with st.sidebar:
 # ══════════════════════════════════════════════════════════
 if st.session_state.page == 'settle':
 
+    # 30초 자동갱신 트리거
+    if "bithumb_ts" in st.session_state and (time.time() - st.session_state.get("bithumb_ts", 0)) > 30:
+        st.session_state.bithumb_price = 0  # 강제 재요청
+        st.rerun()
+
     st.markdown('<div class="main-title">단계별 정산 시스템</div>', unsafe_allow_html=True)
 
     merchants = st.session_state.db['merchants']
@@ -404,10 +409,65 @@ if st.session_state.page == 'settle':
     sel_p = st.radio("적용 배수", ["4%", "4.5%", "5%"], index=0, horizontal=True)
     m_map = {"4%": 1.04, "4.5%": 1.045, "5%": 1.05}
 
+    # ── 빗썸 실시간 시세 ───────────────────────────────────
+    def fetch_bithumb_price():
+        try:
+            res = requests.get("https://api.bithumb.com/public/ticker/USDT_KRW", timeout=3)
+            data = res.json()
+            if data.get("status") == "0000":
+                return int(float(data["data"]["closing_price"]))
+        except:
+            pass
+        return 0
+
+    now_ts = time.time()
+    if "bithumb_price" not in st.session_state or now_ts - st.session_state.get("bithumb_ts", 0) > 30:
+        st.session_state.bithumb_price = fetch_bithumb_price()
+        st.session_state.bithumb_ts = now_ts
+
+    live_price = st.session_state.get("bithumb_price", 0)
+
+    import datetime
+    if live_price > 0:
+        fetched_time = datetime.datetime.fromtimestamp(st.session_state.bithumb_ts).strftime("%H:%M:%S")
+        ticker_html = (
+            "<div style='"
+            "display:flex;align-items:center;justify-content:space-between;"
+            "padding:14px 22px;margin-bottom:14px;"
+            "background:linear-gradient(135deg,#030f1c 0%,#041810 100%);"
+            "border:1px solid rgba(93,173,226,0.35);border-radius:10px;"
+            "box-shadow:0 0 24px rgba(93,173,226,0.12);"
+            "'>"
+            "<div style='display:flex;align-items:center;gap:14px;'>"
+            "<span style='font-family:Space Mono,monospace;font-size:0.7em;color:#5dade2;letter-spacing:0.12em;opacity:0.7;'>BITHUMB</span>"
+            "<span style='font-family:Space Mono,monospace;font-size:0.7em;color:#5dade2;letter-spacing:0.12em;opacity:0.7;'>USDT / KRW</span>"
+            "<div style='width:7px;height:7px;border-radius:50%;background:#2ecc71;box-shadow:0 0 8px #2ecc71;animation:blink 1.5s infinite;'></div>"
+            "</div>"
+            f"<div style='font-family:Space Mono,monospace;font-size:1.8em;font-weight:700;color:#ffffff;letter-spacing:0.04em;'>"
+            f"&#8361; {fmt(live_price)}"
+            "</div>"
+            f"<div style='font-family:Space Mono,monospace;font-size:0.68em;color:rgba(255,255,255,0.25);'>{fetched_time} 기준</div>"
+            "</div>"
+            "<style>@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.15;}}</style>"
+        )
+        st.markdown(ticker_html, unsafe_allow_html=True)
+    else:
+        st.markdown(
+            "<p style='color:#e74c3c;font-family:monospace;font-size:0.85em;'>"
+            "⚠ 빗썸 시세를 가져올 수 없습니다. 수동 입력해주세요.</p>",
+            unsafe_allow_html=True
+        )
+
     sc1, sc2 = st.columns(2)
-    with sc1: sb_val = extract_int(st.text_input("빗썸 시세", key="s_b"))
+    with sc1:
+        sb_default = str(live_price) if live_price > 0 and not st.session_state.get("s_b") else st.session_state.get("s_b", "")
+        sb_val = extract_int(st.text_input("빗썸 시세", value=sb_default, key="s_b"))
     with sc2: ss_val = extract_int(st.text_input("수동 환율", key="s_s"))
     s_rate = ss_val if ss_val > 0 else math.ceil(sb_val * m_map[sel_p])
+
+    # 30초 후 자동 리런 트리거
+    if live_price > 0 and (time.time() - st.session_state.get("bithumb_ts", 0)) > 30:
+        st.rerun()
 
     if s_rate > 0:
         editable_box(f"1usdt = {fmt(s_rate)} krw", "sky", "rate_01")
