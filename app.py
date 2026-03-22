@@ -310,6 +310,18 @@ st.markdown("""
         margin: 24px 0 !important;
     }
 
+    /* ── NEW SESSION 버튼 ── */
+    [data-testid="stSidebar"] button[kind="secondary"]:has(+ *),
+    div[data-testid="stSidebar"] div:has(> button[key="reset_inputs"]) button {
+        background: linear-gradient(135deg, #0d2a1a, #0a1f2e) !important;
+        border-color: rgba(46,204,113,0.4) !important;
+        color: #2ecc71 !important;
+    }
+    div[data-testid="stSidebar"] div:has(> button[key="reset_inputs"]) button:hover {
+        background: #2ecc71 !important;
+        color: #000 !important;
+    }
+
     /* ── 스크롤바 ── */
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: #060c16; }
@@ -342,6 +354,26 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     if st.button("🚀  정산 작업"): st.session_state.page = 'settle'; st.rerun()
     if st.button("⚙️  머천트 관리"): st.session_state.page = 'admin'; st.rerun()
+
+    st.divider()
+
+    # ── 입력값 초기화 버튼 ─────────────────────────────────
+    st.markdown("""
+    <div style="font-family:'Space Mono',monospace; font-size:0.68em; color:#3a5a7a;
+                letter-spacing:0.1em; text-transform:uppercase; margin-bottom:6px;">
+        ▸ 작업 초기화
+    </div>
+    """, unsafe_allow_html=True)
+
+    reset_keys = ["s_b", "s_s", "s_amt", "bal_in", "w_in", "t_b", "t_u", "t_s"]
+    if st.button("⟳  NEW SESSION", key="reset_inputs"):
+        for k in reset_keys:
+            if k in st.session_state:
+                del st.session_state[k]
+        st.session_state.page = 'settle'
+        st.toast("입력값이 초기화되었습니다", icon="🔄")
+        st.rerun()
+
     st.divider()
     if st.button("🔄  데이터 복구"):
         st.session_state.db = get_default_data()
