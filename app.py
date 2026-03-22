@@ -424,17 +424,24 @@ if st.session_state.page == 'settle':
             r2 = requests.get('https://api.upbit.com/v1/ticker?markets=KRW-USDT', timeout=3)
             upbit_usdt = float(r2.json()[0]['trade_price'])
             if exim_key:
-                today = datetime.datetime.now().strftime('%Y%m%d')
-                r3 = requests.get(
-                    f'https://www.koreaexim.go.kr/site/program/financial/exchangeJSON'
-                    f'?authkey={exim_key}&searchdate={today}&data=AP01',
-                    timeout=4
-                )
-                for item in r3.json():
-                    if item.get('cur_unit') == 'USD':
-                        usd_krw = float(item['deal_bas_r'].replace(',', ''))
-                        if usd_krw > 0 and upbit_usdt > 0:
-                            kimchi = round(((upbit_usdt / usd_krw) - 1) * 100, 2)
+                # 오늘 → 안되면 어제 날짜로 fallback
+                for days_ago in range(0, 4):
+                    date = (datetime.datetime.now() - datetime.timedelta(days=days_ago)).strftime('%Y%m%d')
+                    r3 = requests.get(
+                        f'https://www.koreaexim.go.kr/site/program/financial/exchangeJSON'
+                        f'?authkey={exim_key}&searchdate={date}&data=AP01',
+                        timeout=4
+                    )
+                    data3 = r3.json()
+                    if not data3:
+                        continue
+                    for item in data3:
+                        if item.get('cur_unit') == 'USD':
+                            usd_krw = float(item['deal_bas_r'].replace(',', ''))
+                            if usd_krw > 0 and upbit_usdt > 0:
+                                kimchi = round(((upbit_usdt / usd_krw) - 1) * 100, 2)
+                            break
+                    if kimchi is not None:
                         break
             elif bithumb and bithumb > 0 and upbit_usdt > 0:
                 kimchi = round(((upbit_usdt / bithumb) - 1) * 100 - 0.09, 2)
