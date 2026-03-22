@@ -421,28 +421,10 @@ if st.session_state.page == 'settle':
         except: pass
         return 0
 
-    @st.cache_data(ttl=60, show_spinner=False)
-    def fetch_all_market_data(_ts):
-        bithumb, kimchi, usd_krw = 0, None, 0
-        try:
-            # CoinGecko: tether 가격 (krw + usd) + 한국 프리미엄
-            url = "https://api.coingecko.com/api/v3/simple/price?ids=tether,bitcoin&vs_currencies=krw,usd"
-            res = requests.get(url, timeout=4)
-            data = res.json()
-            usdt_krw = data.get("tether", {}).get("krw", 0)
-            usd_krw  = int(data.get("bitcoin", {}).get("krw", 0) / data.get("bitcoin", {}).get("usd", 1)) if data.get("bitcoin", {}).get("usd") else 0
-            if usdt_krw:
-                bithumb = int(usdt_krw)
-            # 김프: 빗썸 BTC/KRW ÷ (글로벌 BTC/USD × USD/KRW) - 1
-            btc_krw_kr  = data.get("bitcoin", {}).get("krw", 0)
-            btc_usd_gl  = data.get("bitcoin", {}).get("usd", 0)
-            if btc_krw_kr and btc_usd_gl and usd_krw:
-                kimchi = round(((btc_krw_kr / (btc_usd_gl * usd_krw)) - 1) * 100, 2)
-        except: pass
-        return bithumb, kimchi, usd_krw
-
-    now_ts = int(time.time() // 60)
-    bithumb, kimchi, usd_krw = fetch_all_market_data(now_ts)
+    # API 비활성화 - 수동입력 모드
+    bithumb = 0
+    kimchi  = None
+    usd_krw = 0
     st.session_state.bithumb_price = bithumb
     st.session_state.kimchi = kimchi
     st.session_state.usd_krw = usd_krw
@@ -462,82 +444,77 @@ if st.session_state.page == 'settle':
     else:
         k_color, k_glow, k_sign, k_label = "#888", "transparent", "", "N/A"
 
-    bithumb_str = f"&#8361; {fmt(live_price)}" if live_price > 0 else "— —"
-    google_str  = f"&#8361; {fmt(usd_krw)}" if usd_krw > 0 else "— —"
-    kimchi_str  = f"{k_sign}{kimchi}%" if kimchi is not None else "— —"
+    bithumb_str = ("&#8361; " + fmt(live_price)) if live_price > 0 else "&mdash;"
+    google_str  = ("&#8361; " + fmt(usd_krw))  if usd_krw > 0  else "&mdash;"
+    kimchi_str  = (k_sign + str(kimchi) + "%")  if kimchi is not None else "&mdash;"
 
-    ticker_html = f"""
-    <style>@keyframes blink{{0%,100%{{opacity:1;}}50%{{opacity:0.15;}}}}</style>
-    <div style="margin-bottom:16px;display:flex;flex-direction:column;gap:8px;">
+    row1 = (
+        "<div style='display:flex;gap:8px;margin-bottom:8px;'>"
 
-      <!-- 빗썸 + 구글 환율 -->
-      <div style="display:flex;gap:8px;">
-        <div style="flex:1;display:flex;align-items:center;justify-content:space-between;
-          padding:12px 18px;
-          background:linear-gradient(135deg,#030f1c,#041810);
-          border:1px solid rgba(93,173,226,0.3);border-radius:10px;
-          box-shadow:0 0 18px rgba(93,173,226,0.1);">
-          <div>
-            <div style="font-family:Space Mono,monospace;font-size:0.65em;color:#5dade2;letter-spacing:0.12em;margin-bottom:4px;">
-              BITHUMB &nbsp;USDT/KRW
-              <span style="display:inline-block;width:6px;height:6px;border-radius:50%;
-                background:#2ecc71;box-shadow:0 0 6px #2ecc71;
-                animation:blink 1.5s infinite;margin-left:6px;vertical-align:middle;"></span>
-            </div>
-            <div style="font-family:Space Mono,monospace;font-size:1.55em;font-weight:700;color:#fff;letter-spacing:0.03em;">
-              {bithumb_str}
-            </div>
-          </div>
-        </div>
+        # 빗썸
+        "<div style='flex:1;padding:12px 18px;"
+        "background:linear-gradient(135deg,#030f1c,#041810);"
+        "border:1px solid rgba(93,173,226,0.3);border-radius:10px;"
+        "box-shadow:0 0 18px rgba(93,173,226,0.1);'>"
+        "<div style='font-family:Space Mono,monospace;font-size:0.65em;"
+        "color:#5dade2;letter-spacing:0.12em;margin-bottom:6px;'>"
+        "BITHUMB &nbsp; USDT/KRW &nbsp;"
+        "<span style='display:inline-block;width:6px;height:6px;border-radius:50%;"
+        "background:#2ecc71;box-shadow:0 0 6px #2ecc71;"
+        "animation:blink 1.5s infinite;vertical-align:middle;'></span>"
+        "</div>"
+        "<div style='font-family:Space Mono,monospace;font-size:1.55em;"
+        "font-weight:700;color:#fff;'>" + bithumb_str + "</div>"
+        "</div>"
 
-        <div style="flex:1;display:flex;align-items:center;justify-content:space-between;
-          padding:12px 18px;
-          background:linear-gradient(135deg,#0d0d03,#181206);
-          border:1px solid rgba(243,156,18,0.3);border-radius:10px;
-          box-shadow:0 0 18px rgba(243,156,18,0.08);">
-          <div>
-            <div style="font-family:Space Mono,monospace;font-size:0.65em;color:#f39c12;letter-spacing:0.12em;margin-bottom:4px;">
-              GOOGLE &nbsp;USD/KRW
-              <span style="display:inline-block;width:6px;height:6px;border-radius:50%;
-                background:#f39c12;box-shadow:0 0 6px #f39c12;
-                animation:blink 1.5s infinite;margin-left:6px;vertical-align:middle;"></span>
-            </div>
-            <div style="font-family:Space Mono,monospace;font-size:1.55em;font-weight:700;color:#fff;letter-spacing:0.03em;">
-              {google_str}
-            </div>
-          </div>
-        </div>
-      </div>
+        # 구글 USD/KRW
+        "<div style='flex:1;padding:12px 18px;"
+        "background:linear-gradient(135deg,#0d0d03,#181206);"
+        "border:1px solid rgba(243,156,18,0.3);border-radius:10px;"
+        "box-shadow:0 0 18px rgba(243,156,18,0.08);'>"
+        "<div style='font-family:Space Mono,monospace;font-size:0.65em;"
+        "color:#f39c12;letter-spacing:0.12em;margin-bottom:6px;'>"
+        "GOOGLE &nbsp; USD/KRW &nbsp;"
+        "<span style='display:inline-block;width:6px;height:6px;border-radius:50%;"
+        "background:#f39c12;box-shadow:0 0 6px #f39c12;"
+        "animation:blink 1.5s infinite;vertical-align:middle;'></span>"
+        "</div>"
+        "<div style='font-family:Space Mono,monospace;font-size:1.55em;"
+        "font-weight:700;color:#fff;'>" + google_str + "</div>"
+        "</div>"
 
-      <!-- 김프 -->
-      <div style="display:flex;align-items:center;justify-content:space-between;
-        padding:12px 22px;
-        background:linear-gradient(135deg,#060606,#0a0a0a);
-        border:1px solid {k_color}55;border-radius:10px;
-        box-shadow:0 0 20px {k_glow};">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <span style="font-family:Space Mono,monospace;font-size:0.65em;color:{k_color};letter-spacing:0.15em;">
-            KIMCHI PREMIUM
-          </span>
-          <span style="font-family:Space Mono,monospace;font-size:0.65em;
-            padding:2px 8px;border-radius:4px;
-            background:{k_color}22;color:{k_color};letter-spacing:0.1em;">
-            {k_label}
-          </span>
-        </div>
-        <div style="font-family:Space Mono,monospace;font-size:1.9em;font-weight:700;
-          color:{k_color};letter-spacing:0.04em;
-          text-shadow:0 0 16px {k_glow};">
-          {kimchi_str}
-        </div>
-        <div style="font-family:Space Mono,monospace;font-size:0.65em;color:rgba(255,255,255,0.2);">
-          {fetched_time} 기준
-        </div>
-      </div>
+        "</div>"
+    )
 
-    </div>
-    """
-    st.markdown(ticker_html, unsafe_allow_html=True)
+    row2 = (
+        "<div style='display:flex;align-items:center;justify-content:space-between;"
+        "padding:12px 22px;"
+        "background:linear-gradient(135deg,#060606,#0a0a0a);"
+        "border:1px solid " + k_color + "55;border-radius:10px;"
+        "box-shadow:0 0 20px " + k_glow + ";margin-bottom:16px;'>"
+
+        "<div style='display:flex;align-items:center;gap:10px;'>"
+        "<span style='font-family:Space Mono,monospace;font-size:0.65em;"
+        "color:" + k_color + ";letter-spacing:0.15em;'>KIMCHI PREMIUM</span>"
+        "<span style='font-family:Space Mono,monospace;font-size:0.65em;"
+        "padding:2px 8px;border-radius:4px;"
+        "background:" + k_color + "22;color:" + k_color + ";'>" + k_label + "</span>"
+        "</div>"
+
+        "<div style='font-family:Space Mono,monospace;font-size:1.9em;"
+        "font-weight:700;color:" + k_color + ";"
+        "text-shadow:0 0 16px " + k_glow + ";'>" + kimchi_str + "</div>"
+
+        "<div style='font-family:Space Mono,monospace;font-size:0.65em;"
+        "color:rgba(255,255,255,0.2);'>" + fetched_time + " 기준</div>"
+        "</div>"
+    )
+
+    st.markdown(
+        "<style>@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.15;}}</style>"
+        + row1 + row2,
+        unsafe_allow_html=True
+    )
 
     sc1, sc2 = st.columns(2)
     with sc1:
