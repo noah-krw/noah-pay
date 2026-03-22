@@ -485,10 +485,6 @@ if st.session_state.page == 'settle':
     # ── 전광판 ────────────────────────────────────────────
 
     bithumb_str = ("&#8361; " + fmt(live_price)) if live_price > 0 else "&mdash;"
-    k_color  = "#e74c3c" if kimchi is not None and kimchi >= 0 else "#2ecc71"
-    k_glow   = "rgba(231,76,60,0.3)" if kimchi is not None and kimchi >= 0 else "rgba(46,204,113,0.3)"
-    k_sign   = "+" if kimchi is not None and kimchi >= 0 else ""
-    kimchi_str = (k_sign + str(kimchi) + "%") if kimchi is not None else "&mdash;"
 
     html = (
         "<style>@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.15;}}</style>"
@@ -511,13 +507,6 @@ if st.session_state.page == 'settle':
         "font-weight:700;color:#ffffff;letter-spacing:0.03em;'>" + bithumb_str + "</div>"
         "<div style='font-family:Space Mono,monospace;font-size:0.68em;"
         "color:#5dade2;letter-spacing:0.1em;'>" + fetched_time + "</div>"
-        "</div>"
-
-        "<div style='display:flex;flex-direction:column;align-items:center;gap:3px;'>"
-        "<div style='font-family:Space Mono,monospace;font-size:0.65em;"
-        "color:rgba(255,255,255,0.35);letter-spacing:0.08em;'>김프</div>"
-        "<div style='font-family:Space Mono,monospace;font-size:1.2em;font-weight:700;"
-        "color:" + k_color + ";text-shadow:0 0 8px " + k_glow + ";'>" + kimchi_str + "</div>"
         "</div>"
 
         "<a href='https://search.naver.com/search.naver?query=%EB%B9%97%EC%8D%B8+%ED%85%8C%EB%8D%94+%EC%8B%9C%EC%84%B8' "
