@@ -83,7 +83,7 @@ def editable_box(text, color_type="blue", box_id="default"):
                 border-top: 1px solid rgba(255,255,255,0.08);
                 background: rgba(0,0,0,0.2);
             ">
-                <span style="font-family:'Courier New',monospace;font-size:11px;color:rgba(255,255,255,0.28);letter-spacing:0.06em;">✎ 직접 수정 가능</span>
+                <span style="font-family:'Courier New',monospace;font-size:13px;font-weight:600;color:{c['text']};letter-spacing:0.05em;opacity:0.6;">✎ 직접 수정 가능</span>
                 <button id="btn_{box_id}" onclick="copyText_{box_id}()" style="
                     display: flex;
                     align-items: center;
