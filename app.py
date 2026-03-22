@@ -413,18 +413,26 @@ if st.session_state.page == 'settle':
 
     def fetch_bithumb():
         try:
-            r = requests.get('https://api.bithumb.com/public/ticker/USDT_KRW', timeout=3)
+            r = requests.get(
+                'https://api.bithumb.com/public/ticker/USDT_KRW',
+                timeout=1.5  # 1.5초 안에 안오면 그냥 이전값 유지
+            )
             if r.json().get('status') == '0000':
                 return int(float(r.json()['data']['closing_price']))
         except: pass
-        return 0
+        return None  # None = 실패, 이전값 유지
 
     now_ts2 = time.time()
     if now_ts2 - st.session_state.get('bithumb_ts', 0) >= 30:
-        st.session_state.bithumb_price = fetch_bithumb()
+        result = fetch_bithumb()
+        if result is not None:  # 성공했을 때만 업데이트
+            st.session_state.bithumb_price = result
+            st.session_state.bithumb_ts = now_ts2
+        elif 'bithumb_price' not in st.session_state:  # 최초 실패시 0
+            st.session_state.bithumb_price = 0
+            st.session_state.bithumb_ts = now_ts2
         st.session_state.kimchi = None
-        st.session_state.usd_krw = st.session_state.bithumb_price
-        st.session_state.bithumb_ts = now_ts2
+        st.session_state.usd_krw = st.session_state.get('bithumb_price', 0)
 
     live_price = st.session_state.get("bithumb_price", 0)
     kimchi     = st.session_state.get("kimchi", None)
@@ -453,7 +461,7 @@ if st.session_state.page == 'settle':
         "<div style='font-family:Space Mono,monospace;font-size:1.8em;"
         "font-weight:700;color:#ffffff;letter-spacing:0.03em;'>" + bithumb_str + "</div>"
         "<div style='display:flex;align-items:center;gap:10px;'>"
-        "<a href='https://search.naver.com/search.naver?query=빗썸+테더+시세' "
+        "<a href='https://search.naver.com/search.naver?query=%EB%B9%97%EC%8D%B8+%ED%85%8C%EB%8D%94+%EC%8B%9C%EC%84%B8' "
         "target='_blank' style='"
         "font-family:Space Mono,monospace;font-size:0.65em;font-weight:600;"
         "color:#f39c12;border:1px solid rgba(243,156,18,0.45);border-radius:5px;"
