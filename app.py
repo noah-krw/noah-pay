@@ -4,10 +4,10 @@ import streamlit.components.v1 as components
 import math, json, os, re
 
 # ============================================================
-# 정산 매크로 v94.3 - [01번/06번 3열 구도 + 05번 복구 + 직접 수정]
+# 정산 매크로 v94.4 - [01번 로직 복구 / 05번 포함 / 06번 구도 완결]
 # ============================================================
 
-DB_FILE = "merchants_v14.json"
+DB_FILE = "merchants_v15.json"
 
 def get_default_data():
     return {
@@ -51,29 +51,14 @@ def editable_box(text, color_type="blue", box_id="default"):
     line_count = text.count("\n") + 1
     height = max(140, line_count * 25 + 60)
     
-    st.markdown(f"""
-    <style>
-    textarea[aria-label="{box_id}"] {{
-        background-color: {c['bg']} !important;
-        color: {c['text']} !important;
-        border-left: 5px solid {c['border']} !important;
-        font-family: 'Courier New', monospace !important;
-        font-size: 15px !important;
-        line-height: 1.5 !important;
-    }}
-    </style>
-    """, unsafe_allow_html=True)
-    
+    st.markdown(f"""<style>textarea[aria-label="{box_id}"] {{ background-color: {c['bg']} !important; color: {c['text']} !important; border-left: 5px solid {c['border']} !important; font-family: 'Courier New', monospace !important; font-size: 15px !important; line-height: 1.5 !important; }}</style>""", unsafe_allow_html=True)
     content = st.text_area(label=box_id, value=text, height=height, label_visibility="collapsed")
-    
     if st.button("📋 복사", key=f"btn_{box_id}"):
-        js = f"<script>navigator.clipboard.writeText(`{content}`);</script>"
-        components.html(js, height=0)
+        components.html(f"<script>navigator.clipboard.writeText(`{content}`);</script>", height=0)
         st.toast("복사 완료")
 
-st.set_page_config(page_title="정산 매크로 v94.3", layout="centered")
+st.set_page_config(page_title="정산 매크로 v94.4", layout="centered")
 
-# v89.8 디자인 (흰색 입력창 + 금색 굵은 글자)
 st.markdown("""
 <style>
     [data-testid="stAppViewContainer"] { background-color: #0a0e17 !important; color: #c8d6e5 !important; }
@@ -105,40 +90,40 @@ if st.session_state.page == 'settle':
     
     st.info(f"📝 비고: {m_info.get('note', '')}")
 
-    # 01. 정산 환율 및 요청 (3열 가로 구도)
+    # 01. 정산 환율 및 요청 (로직 원상 복구)
     st.markdown('<div class="label-header">01. 정산 환율 및 요청</div>', unsafe_allow_html=True)
     sel_p = st.radio("적용 배수", ["4%", "4.5%", "5%"], index=0, horizontal=True)
     m_map = {"4%": 1.04, "4.5%": 1.045, "5%": 1.05}
     
-    sc1, sc2, sc3 = st.columns(3)
+    sc1, sc2 = st.columns(2)
     with sc1: sb_val = extract_int(st.text_input("빗썸 시세", key="s_b"))
-    with sc2: su_amt = extract_int(st.text_input("수량(USDT)", key="s_u"))
-    with sc3: ss_val = extract_int(st.text_input("수동 환율", key="s_s"))
-    
+    with sc2: ss_val = extract_int(st.text_input("수동 환율", key="s_s"))
     s_rate = ss_val if ss_val > 0 else math.ceil(sb_val * m_map[sel_p])
+    
+    # 01번은 KRW를 입력받아 USDT를 출력합니다.
+    amt = extract_int(st.text_input("정산 금액 (KRW)", key="s_amt"))
     
     if s_rate > 0:
         st.markdown(f'<div class="rate-guide">>>> 적용 환율 1usdt = {fmt(s_rate)} krw</div>', unsafe_allow_html=True)
-        if su_amt > 0:
-            total_s_krw = su_amt * s_rate
-            s_msg = f"- {selected_m} settlement amount : {fmt(total_s_krw)} krw\n- exchange to usdt : {fmt(su_amt)} usdt\n- 1usdt = {fmt(s_rate)} krw\n\n{m_info['wallet']}\n\nPlease confirm the address and calculation.\nOnce approved, we will proceed immediately"
+        if amt > 0:
+            u_val = round(amt / s_rate, 2)
+            s_msg = f"- {selected_m} settlement amount : {fmt(amt)} krw\n- exchange to usdt : {u_val:,.2f} usdt\n- 1usdt = {fmt(s_rate)} krw\n\n{m_info['wallet']}\n\nPlease confirm the address and calculation.\nOnce approved, we will proceed immediately"
             editable_box(s_msg, "blue", box_id="res_01")
 
     # 02. 잔액 보고
     st.markdown('<div class="label-header">02. 최종 잔액 보고</div>', unsafe_allow_html=True)
     bal_in = extract_int(st.text_input("현재 잔액 입력 (KRW)", key="bal_in"))
-    if bal_in > 0 and su_amt > 0:
-        total_s_krw = su_amt * s_rate
-        b_msg = f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {fmt(total_s_krw)} krw\nexchange to usdt : {fmt(su_amt)} usdt\n1usdt = {fmt(s_rate)} krw\n\n- {selected_m} : {fmt(bal_in)} krw"
+    if bal_in > 0 and amt > 0:
+        u_ceil = math.ceil(amt / s_rate)
+        b_msg = f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {fmt(amt)} krw\nexchange to usdt : {fmt(u_ceil)} usdt\n1usdt = {fmt(s_rate)} krw\n\n- {selected_m} : {fmt(bal_in)} krw"
         editable_box(b_msg, "green", box_id="res_02")
 
     # 03. 마크업 수수료
     st.markdown('<div class="label-header">03. 마크업 수수료</div>', unsafe_allow_html=True)
     m_fee = float(m_info.get('fee', 0.5))
-    if su_amt > 0:
-        total_s_krw = su_amt * s_rate
-        markup = math.ceil(total_s_krw * (m_fee / 100))
-        editable_box(f"드래곤 테더정산 마크업 {m_fee}% {selected_m} / {fmt(total_s_krw)} / {fmt(markup)}", "yellow", box_id="res_03")
+    if amt > 0:
+        markup = math.ceil(amt * (m_fee / 100))
+        editable_box(f"드래곤 테더정산 마크업 {m_fee}% {selected_m} / {fmt(amt)} / {fmt(markup)}", "yellow", box_id="res_03")
 
     # 04. 잔액 경고
     st.markdown('<div class="label-header" style="color:#e74c3c;">04. 잔액 경고</div>', unsafe_allow_html=True)
@@ -147,7 +132,7 @@ if st.session_state.page == 'settle':
         w_msg = f"Hello, Team\nCurrently, the balance of the merchants is too high.\nTo ensure a safe balance, please proceed with USDT settlement.\nThank you\n\nBalance update\n\n- {selected_m} : {fmt(w_bal)} krw"
         editable_box(w_msg, "red", box_id="res_04")
 
-    # 05. 환전(Payout) 요청 (복구 완료)
+    # 05. 환전(Payout) 요청 (복구)
     st.markdown('<div class="label-header">05. 환전(Payout) 요청</div>', unsafe_allow_html=True)
     p_amt = extract_int(st.text_input("환전 금액 (KRW)", key="p_amt"))
     if p_amt > 0:
@@ -155,7 +140,7 @@ if st.session_state.page == 'settle':
         editable_box(p_msg, "blue", box_id="res_05")
 
     st.divider()
-    # 06. TOP-UP 요청 (3열 가로 구도 완결)
+    # 06. TOP-UP 요청 (3열 그림판 구도 완결)
     st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
     t1, t2, t3 = st.columns(3)
     with t1: tb_val = extract_int(st.text_input("탑업 시세(빗썸)", key="t_b"))
