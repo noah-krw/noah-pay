@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import streamlit as st
 import streamlit.components.v1 as components
-import math, json, os, re, requests, time
+import math, json, os, re, requests, time, datetime
 
 # ============================================================
 # 정산 매크로 v97.0 - [디자인 개선: 헤더, 복사버튼, 텍스트박스, 입력필드]
@@ -550,6 +550,7 @@ elif st.session_state.page == 'topup':
     m_info = merchants[selected_m]
 
     live_price = st.session_state.get("bithumb_price", 0)
+    import datetime
     kst = datetime.timezone(datetime.timedelta(hours=9))
     fetched_time = datetime.datetime.fromtimestamp(st.session_state.get("bithumb_ts", time.time()), tz=kst).strftime("%H:%M:%S")
     bithumb_str = ("&#8361; " + fmt(live_price)) if live_price > 0 else "&mdash;"
