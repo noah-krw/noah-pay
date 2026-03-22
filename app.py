@@ -409,25 +409,31 @@ if st.session_state.page == 'settle':
     sel_p = st.radio("적용 배수", ["4%", "4.5%", "5%"], index=0, horizontal=True)
     m_map = {"4%": 1.04, "4.5%": 1.045, "5%": 1.05}
 
-    # ── 실시간 시세 데이터 fetch 함수들 ──────────────────────
     import datetime
 
-    def fetch_bithumb_usdt():
+    @st.cache_data(ttl=30, show_spinner=False)
+    def fetch_market_data(_ts):
+        bithumb, kimchi = 0, None
         try:
-            res = requests.get("https://api.bithumb.com/public/ticker/USDT_KRW", timeout=3)
-            data = res.json()
-            if data.get("status") == "0000":
-                return int(float(data["data"]["closing_price"]))
+            r1 = requests.get("https://api.bithumb.com/public/ticker/USDT_KRW", timeout=3)
+            if r1.json().get("status") == "0000":
+                bithumb = int(float(r1.json()["data"]["closing_price"]))
         except: pass
-        return 0
+        try:
+            r2 = requests.get("https://api.upbit.com/v1/ticker?markets=KRW-BTC", timeout=3)
+            r3 = requests.get("https://api.bithumb.com/public/ticker/BTC_KRW", timeout=3)
+            upbit_btc   = float(r2.json()[0]["trade_price"])
+            bithumb_btc = float(r3.json()["data"]["closing_price"])
+            if bithumb_btc > 0:
+                kimchi = round(((upbit_btc / bithumb_btc) - 1) * 100, 2)
+        except: pass
+        return bithumb, kimchi
 
-    # API 비활성화 - 수동입력 모드
-    bithumb = 0
-    kimchi  = None
-    usd_krw = 0
+    now_ts2 = int(time.time() // 30)
+    bithumb, kimchi = fetch_market_data(now_ts2)
     st.session_state.bithumb_price = bithumb
     st.session_state.kimchi = kimchi
-    st.session_state.usd_krw = usd_krw
+    st.session_state.usd_krw = bithumb
     st.session_state.bithumb_ts = time.time()
 
     live_price = st.session_state.get("bithumb_price", 0)
@@ -445,54 +451,36 @@ if st.session_state.page == 'settle':
         k_color, k_glow, k_sign, k_label = "#888", "transparent", "", "N/A"
 
     bithumb_str = ("&#8361; " + fmt(live_price)) if live_price > 0 else "&mdash;"
-    google_str  = ("&#8361; " + fmt(usd_krw))  if usd_krw > 0  else "&mdash;"
-    kimchi_str  = (k_sign + str(kimchi) + "%")  if kimchi is not None else "&mdash;"
+    kimchi_str  = (k_sign + str(kimchi) + "%") if kimchi is not None else "&mdash;"
 
-    row1 = (
-        "<div style='display:flex;gap:8px;margin-bottom:8px;'>"
+    html = (
+        "<style>@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.15;}}</style>"
 
-        # 빗썸
-        "<div style='flex:1;padding:12px 18px;"
+        "<div style='padding:12px 18px;margin-bottom:8px;"
         "background:linear-gradient(135deg,#030f1c,#041810);"
         "border:1px solid rgba(93,173,226,0.3);border-radius:10px;"
-        "box-shadow:0 0 18px rgba(93,173,226,0.1);'>"
+        "box-shadow:0 0 18px rgba(93,173,226,0.1);"
+        "display:flex;align-items:center;justify-content:space-between;'>"
+        "<div>"
         "<div style='font-family:Space Mono,monospace;font-size:0.65em;"
         "color:#5dade2;letter-spacing:0.12em;margin-bottom:6px;'>"
-        "BITHUMB &nbsp; USDT/KRW &nbsp;"
+        "BITHUMB &nbsp; USDT / KRW &nbsp;"
         "<span style='display:inline-block;width:6px;height:6px;border-radius:50%;"
         "background:#2ecc71;box-shadow:0 0 6px #2ecc71;"
         "animation:blink 1.5s infinite;vertical-align:middle;'></span>"
         "</div>"
-        "<div style='font-family:Space Mono,monospace;font-size:1.55em;"
-        "font-weight:700;color:#fff;'>" + bithumb_str + "</div>"
+        "<div style='font-family:Space Mono,monospace;font-size:1.7em;"
+        "font-weight:700;color:#fff;letter-spacing:0.03em;'>" + bithumb_str + "</div>"
         "</div>"
-
-        # 구글 USD/KRW
-        "<div style='flex:1;padding:12px 18px;"
-        "background:linear-gradient(135deg,#0d0d03,#181206);"
-        "border:1px solid rgba(243,156,18,0.3);border-radius:10px;"
-        "box-shadow:0 0 18px rgba(243,156,18,0.08);'>"
         "<div style='font-family:Space Mono,monospace;font-size:0.65em;"
-        "color:#f39c12;letter-spacing:0.12em;margin-bottom:6px;'>"
-        "GOOGLE &nbsp; USD/KRW &nbsp;"
-        "<span style='display:inline-block;width:6px;height:6px;border-radius:50%;"
-        "background:#f39c12;box-shadow:0 0 6px #f39c12;"
-        "animation:blink 1.5s infinite;vertical-align:middle;'></span>"
-        "</div>"
-        "<div style='font-family:Space Mono,monospace;font-size:1.55em;"
-        "font-weight:700;color:#fff;'>" + google_str + "</div>"
+        "color:rgba(255,255,255,0.2);'>" + fetched_time + " 기준</div>"
         "</div>"
 
-        "</div>"
-    )
-
-    row2 = (
-        "<div style='display:flex;align-items:center;justify-content:space-between;"
-        "padding:12px 22px;"
+        "<div style='padding:12px 22px;margin-bottom:16px;"
         "background:linear-gradient(135deg,#060606,#0a0a0a);"
         "border:1px solid " + k_color + "55;border-radius:10px;"
-        "box-shadow:0 0 20px " + k_glow + ";margin-bottom:16px;'>"
-
+        "box-shadow:0 0 20px " + k_glow + ";"
+        "display:flex;align-items:center;justify-content:space-between;'>"
         "<div style='display:flex;align-items:center;gap:10px;'>"
         "<span style='font-family:Space Mono,monospace;font-size:0.65em;"
         "color:" + k_color + ";letter-spacing:0.15em;'>KIMCHI PREMIUM</span>"
@@ -500,21 +488,12 @@ if st.session_state.page == 'settle':
         "padding:2px 8px;border-radius:4px;"
         "background:" + k_color + "22;color:" + k_color + ";'>" + k_label + "</span>"
         "</div>"
-
         "<div style='font-family:Space Mono,monospace;font-size:1.9em;"
         "font-weight:700;color:" + k_color + ";"
         "text-shadow:0 0 16px " + k_glow + ";'>" + kimchi_str + "</div>"
-
-        "<div style='font-family:Space Mono,monospace;font-size:0.65em;"
-        "color:rgba(255,255,255,0.2);'>" + fetched_time + " 기준</div>"
         "</div>"
     )
-
-    st.markdown(
-        "<style>@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.15;}}</style>"
-        + row1 + row2,
-        unsafe_allow_html=True
-    )
+    st.markdown(html, unsafe_allow_html=True)
 
     sc1, sc2 = st.columns(2)
     with sc1:
