@@ -522,10 +522,10 @@ if st.session_state.page == 'settle':
 
         "<a href='https://search.naver.com/search.naver?query=%EB%B9%97%EC%8D%B8+%ED%85%8C%EB%8D%94+%EC%8B%9C%EC%84%B8' "
         "target='_blank' style='"
-        "font-family:Space Mono,monospace;font-size:0.68em;font-weight:600;"
-        "color:#f39c12;border:1px solid rgba(243,156,18,0.45);border-radius:6px;"
-        "padding:6px 14px;text-decoration:none;letter-spacing:0.06em;"
-        "background:rgba(243,156,18,0.07);'>김프 확인 ↗</a>"
+        "font-family:Space Mono,monospace;font-size:0.85em;font-weight:700;"
+        "color:#2ecc71;border:1px solid rgba(46,204,113,0.5);border-radius:8px;"
+        "padding:10px 20px;text-decoration:none;letter-spacing:0.08em;"
+        "background:rgba(46,204,113,0.08);box-shadow:0 0 12px rgba(46,204,113,0.15);'>김프 확인</a>"
 
         "</div>"
     )
