@@ -4,10 +4,10 @@ import streamlit.components.v1 as components
 import math, json, os, re
 
 # ============================================================
-# 정산 매크로 v94.6 - [01번 정산복구 / 06번 3열구도 / spfxm 고정]
+# 정산 매크로 v94.7 - [01번 2열 원복 / 06번 3열 고정 / 05번 포함]
 # ============================================================
 
-DB_FILE = "merchants_v17.json"
+DB_FILE = "merchants_v18.json"
 
 def get_default_data():
     return {
@@ -54,10 +54,10 @@ def editable_box(text, color_type="blue", box_id="default"):
     st.markdown(f"""<style>textarea[aria-label="{box_id}"] {{ background-color: {c['bg']} !important; color: {c['text']} !important; border-left: 5px solid {c['border']} !important; font-family: 'Courier New', monospace !important; font-size: 15px !important; line-height: 1.5 !important; }}</style>""", unsafe_allow_html=True)
     content = st.text_area(label=box_id, value=text, height=height, label_visibility="collapsed")
     if st.button("📋 복사", key=f"btn_{box_id}"):
-        components.html(f"<script>navigator.clipboard.writeText(`{content.encode('utf-8').decode('utf-8')}`);</script>", height=0)
+        components.html(f"<script>navigator.clipboard.writeText(`{content}`);</script>", height=0)
         st.toast("복사 완료")
 
-st.set_page_config(page_title="정산 매크로 v94.6", layout="centered")
+st.set_page_config(page_title="정산 매크로 v94.7", layout="centered")
 
 st.markdown("""
 <style>
@@ -90,7 +90,7 @@ if st.session_state.page == 'settle':
     
     st.info(f"📝 비고: {m_info.get('note', '')}")
 
-    # 01. 정산 환율 및 요청 (KRW 입력 원복 완료)
+    # 01. 정산 환율 및 요청 (2열 구도 원복 + USDT 입력칸 삭제)
     st.markdown('<div class="label-header">01. 정산 환율 및 요청</div>', unsafe_allow_html=True)
     sel_p = st.radio("적용 배수", ["4%", "4.5%", "5%"], index=0, horizontal=True)
     m_map = {"4%": 1.04, "4.5%": 1.045, "5%": 1.05}
@@ -100,15 +100,15 @@ if st.session_state.page == 'settle':
     with sc2: ss_val = extract_int(st.text_input("수동 환율", key="s_s"))
     s_rate = ss_val if ss_val > 0 else math.ceil(sb_val * m_map[sel_p])
     
-    # [중요] 정산은 KRW를 입력받습니다.
-    amt = extract_int(st.text_input("정산 금액 (KRW)", key="s_amt"))
-    
     if s_rate > 0:
         st.markdown(f'<div class="rate-guide">>>> 적용 환율 1usdt = {fmt(s_rate)} krw</div>', unsafe_allow_html=True)
-        if amt > 0:
-            u_val = round(amt / s_rate, 2)
-            s_msg = f"- {selected_m} settlement amount : {fmt(amt)} krw\n- exchange to usdt : {u_val:,.2f} usdt\n- 1usdt = {fmt(s_rate)} krw\n\n{m_info['wallet']}\n\nPlease confirm the address and calculation.\nOnce approved, we will proceed immediately"
-            editable_box(s_msg, "blue", box_id="res_01")
+    
+    amt = extract_int(st.text_input("정산 금액 (KRW)", key="s_amt"))
+    
+    if amt > 0 and s_rate > 0:
+        u_val = round(amt / s_rate, 2)
+        s_msg = f"- {selected_m} settlement amount : {fmt(amt)} krw\n- exchange to usdt : {u_val:,.2f} usdt\n- 1usdt = {fmt(s_rate)} krw\n\n{m_info['wallet']}\n\nPlease confirm the address and calculation.\nOnce approved, we will proceed immediately"
+        editable_box(s_msg, "blue", box_id="res_01")
 
     # 02. 잔액 보고
     st.markdown('<div class="label-header">02. 최종 잔액 보고</div>', unsafe_allow_html=True)
@@ -140,7 +140,7 @@ if st.session_state.page == 'settle':
         editable_box(p_msg, "blue", box_id="res_05")
 
     st.divider()
-    # 06. TOP-UP 요청 (3열 가로 구도 + 파란 안내선 완결)
+    # 06. TOP-UP 요청 (3열 가로 구도 완결)
     st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
     t1, t2, t3 = st.columns(3)
     with t1: tb_val = extract_int(st.text_input("탑업 시세(빗썸)", key="t_b"))
