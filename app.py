@@ -520,7 +520,9 @@ if st.session_state.page == 'settle':
     )
     st.markdown(html, unsafe_allow_html=True)
 
-
+    if st.button("⟳", key="refresh_ticker", help="시세 새로고침"):
+        st.session_state.bithumb_ts = 0
+        st.rerun()
 
     sc1, sc2 = st.columns(2)
     with sc1:
