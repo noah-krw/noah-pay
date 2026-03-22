@@ -58,7 +58,7 @@ def editable_box(text, color_type="blue", box_id="default"):
             overflow: hidden;
             background: {c['bg']};
         ">
-            <textarea id="copy_area_{box_id}" readonly style="
+            <textarea id="copy_area_{box_id}" style="
                 width: 100%;
                 height: {height - 55}px;
                 background: transparent;
@@ -115,13 +115,11 @@ def editable_box(text, color_type="blue", box_id="default"):
         const btn = document.getElementById('btn_{box_id}');
         
         // 선택 및 복사
-        textArea.removeAttribute('readonly');
         textArea.select();
         textArea.setSelectionRange(0, 99999);
         
         try {{
             const success = document.execCommand('copy');
-            textArea.setAttribute('readonly', true);
             
             if (success) {{
                 btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> COPIED`;
@@ -139,7 +137,6 @@ def editable_box(text, color_type="blue", box_id="default"):
                 }}, 1800);
             }}
         }} catch (err) {{
-            textArea.setAttribute('readonly', true);
             console.error('복사 실패:', err);
         }}
     }}
