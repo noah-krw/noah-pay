@@ -376,8 +376,7 @@ with st.sidebar:
     reset_keys = ["s_b", "s_s", "s_amt", "bal_in", "w_in", "t_b", "t_u", "t_s"]
     if st.button("⟳  NEW SESSION", key="reset_inputs", use_container_width=True):
         for k in reset_keys:
-            if k in st.session_state:
-                del st.session_state[k]
+            st.session_state[k] = ""
         st.session_state.page = 'settle'
         st.toast("입력값이 초기화되었습니다", icon="🔄")
         st.rerun()
