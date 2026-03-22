@@ -170,17 +170,30 @@ st.markdown("""
         width: 100%;
         background: #0d1a2e !important;
         color: #7aa8cc !important;
-        border: 1px solid rgba(74,144,217,0.2) !important;
-        border-radius: 6px !important;
+        border: 1px solid rgba(74,144,217,0.25) !important;
+        border-radius: 8px !important;
         font-family: 'Space Mono', monospace !important;
-        font-size: 0.82em !important;
-        letter-spacing: 0.05em !important;
+        font-size: 0.9em !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.08em !important;
+        padding: 11px 0 !important;
         transition: all 0.2s ease !important;
     }
     [data-testid="stSidebar"] button:hover {
         background: #1a2e48 !important;
         border-color: #4a90d9 !important;
-        color: #a8c7e8 !important;
+        color: #cde4f8 !important;
+        box-shadow: 0 0 12px rgba(74,144,217,0.2) !important;
+    }
+    /* NEW SESSION 버튼 override */
+    [data-testid="stSidebar"] button[data-testid="baseButton-secondary"]:nth-of-type(3) {
+        background: linear-gradient(135deg, #0a2e1a, #0d2535) !important;
+        color: #2ecc71 !important;
+        border: 1.5px solid #2ecc71 !important;
+        font-size: 1.0em !important;
+        padding: 13px 0 !important;
+        box-shadow: 0 0 14px rgba(46,204,113,0.15) !important;
+        letter-spacing: 0.15em !important;
     }
 
     /* ── 메인 타이틀 ── */
@@ -366,7 +379,44 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     reset_keys = ["s_b", "s_s", "s_amt", "bal_in", "w_in", "t_b", "t_u", "t_s"]
-    if st.button("⟳  NEW SESSION", key="reset_inputs"):
+    # 커스텀 스타일 버튼
+    st.markdown("""
+    <style>
+    div[data-testid="stSidebar"] div:has(> div > button[kind="secondaryFormSubmit"]) { display:none; }
+    #new_session_btn {
+        display: block;
+        width: 100%;
+        padding: 13px 0;
+        margin: 4px 0 2px;
+        background: linear-gradient(135deg, #0a2e1a 0%, #0d2535 100%);
+        color: #2ecc71;
+        border: 1.5px solid #2ecc71;
+        border-radius: 8px;
+        font-family: 'Space Mono', 'Courier New', monospace;
+        font-size: 1.05em;
+        font-weight: 700;
+        letter-spacing: 0.15em;
+        text-align: center;
+        cursor: pointer;
+        text-transform: uppercase;
+        box-shadow: 0 0 14px rgba(46,204,113,0.18), inset 0 0 20px rgba(46,204,113,0.04);
+        transition: all 0.2s ease;
+    }
+    #new_session_btn:hover {
+        background: #2ecc71;
+        color: #000;
+        box-shadow: 0 0 28px rgba(46,204,113,0.5);
+        transform: translateY(-1px);
+    }
+    #new_session_btn:active {
+        transform: translateY(0px);
+        box-shadow: 0 0 10px rgba(46,204,113,0.3);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    clicked = st.button("⟳  NEW SESSION", key="reset_inputs", use_container_width=True)
+    if clicked:
         for k in reset_keys:
             if k in st.session_state:
                 del st.session_state[k]
