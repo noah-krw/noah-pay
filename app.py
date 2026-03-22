@@ -4,7 +4,7 @@ import streamlit.components.v1 as components
 import math, json, os, re, requests
 
 # ============================================================
-# 정산 매크로 v98.0 - [빗썸 실시간 시세 자동 연동 추가]
+# 정산 매크로 v98.1 - [f-string 문법 오류 수정 완료]
 # ============================================================
 
 DB_FILE = "merchants_v96.json"
@@ -59,6 +59,7 @@ def editable_box(text, color_type="blue", box_id="default"):
     line_count = text.count("\n") + 1
     height = max(160, line_count * 26 + 90)
 
+    # 파이썬 f-string 내의 자바스크립트 중괄호를 {{ }}로 이스케이프 처리함
     html_code = f"""
     <div style="margin-bottom:14px; position:relative;">
         <div style="
@@ -144,13 +145,13 @@ def editable_box(text, color_type="blue", box_id="default"):
                     btn.style.transform = 'scale(1)';
                 }}, 1800);
             }}
-        } catch (err) {{ console.error('복사 실패:', err); }}
+        }} catch (err) {{ console.error('복사 실패:', err); }}
     }}
     </script>
     """
     components.html(html_code, height=height)
 
-st.set_page_config(page_title="단계별 정산 시스템 v98", layout="centered")
+st.set_page_config(page_title="단계별 정산 시스템 v98.1", layout="centered")
 
 st.markdown("""
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -213,15 +214,6 @@ st.markdown("""
         font-family: 'Space Mono', monospace !important;
         font-size: 1.1em !important;
     }
-    .rate-text {
-        font-family: 'Space Mono', monospace;
-        color: #5dade2;
-        font-size: 0.95em;
-        margin: 8px 0 6px;
-        padding: 8px 14px;
-        background: rgba(93,173,226,0.07);
-        border-radius: 6px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -251,28 +243,22 @@ if st.session_state.page == 'settle':
     selected_m = st.selectbox("업체 선택", sorted(list(merchants.keys())))
     m_info = merchants[selected_m]
 
-    # 01. 정산 환율 (빗썸 API 연동)
     section_header("01", "정산 환율", "#4a90d9", "74,144,217")
-    
     col_price, col_btn = st.columns([3, 1])
     with col_btn:
         st.markdown("<div style='padding-top:28px;'></div>", unsafe_allow_html=True)
         if st.button("⚡ 시세호출"):
             st.session_state.s_b = str(get_bithumb_price())
             st.rerun()
-            
     with col_price:
         sb_val = extract_int(st.text_input("빗썸 시세 (USDT_KRW)", key="s_b"))
 
     sel_p = st.radio("적용 배수", ["4%", "4.5%", "5%"], index=0, horizontal=True)
     m_map = {"4%": 1.04, "4.5%": 1.045, "5%": 1.05}
-    
     ss_val = extract_int(st.text_input("수동 환율 (입력 시 시세 무시)", key="s_s"))
     s_rate = ss_val if ss_val > 0 else math.ceil(sb_val * m_map[sel_p])
-    
     if s_rate > 0: editable_box(f"1usdt = {fmt(s_rate)} krw", "sky", "rate_01")
 
-    # 02. 정산 멘트
     section_header("02", "정산 멘트 생성")
     amt = extract_int(st.text_input("정산 금액 (KRW) 입력", key="s_amt"))
     if amt > 0 and s_rate > 0:
@@ -280,7 +266,6 @@ if st.session_state.page == 'settle':
         s_msg = (f"- {selected_m} settlement amount : {fmt(amt)} krw\n- exchange to usdt : {u_val:,.2f} usdt\n- 1usdt = {fmt(s_rate)} krw\n\n{m_info['wallet']}\n\nPlease confirm the address and calculation.\nOnce approved, we will proceed immediately")
         editable_box(s_msg, "blue", "res_02")
 
-    # 03. 잔액 보고
     section_header("03", "최종 잔액 보고")
     bal_in = extract_int(st.text_input("현재 잔액 입력 (KRW)", key="bal_in"))
     if bal_in > 0 and amt > 0:
@@ -288,23 +273,20 @@ if st.session_state.page == 'settle':
         b_msg = (f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {fmt(amt)} krw\nexchange to usdt : {fmt(u_ceil)} usdt\n1usdt = {fmt(s_rate)} krw\n\n- {selected_m} : {fmt(bal_in)} krw")
         editable_box(b_msg, "green", "res_03")
 
-    # 04. 마크업
     section_header("04", "마크업 수수료", "#f39c12")
     if amt > 0:
         m_fee = float(m_info.get('fee', 0.5))
         markup = math.ceil(amt * (m_fee / 100))
         editable_box(f"드래곤 테더정산 마크업 {m_fee}% {selected_m} / {fmt(amt)} / {fmt(markup)}", "yellow", "res_04")
 
-    # 05. 정산 요청
     section_header("05", "정산(SETTLEMENT) 요청", "#e74c3c")
     w_bal = extract_int(st.text_input("하이 밸런스 경고용 잔액", key="w_in"))
     if w_bal > 0:
-        st.markdown(f'<p class="rate-text">▸ 적용 환율 &nbsp; 1usdt = {fmt(s_rate)} krw</p>', unsafe_allow_html=True)
+        st.markdown(f'<p style="color:#5dade2; font-family:Space Mono,monospace; margin-bottom:8px;">▸ 적용 환율 &nbsp; 1usdt = {fmt(s_rate)} krw</p>', unsafe_allow_html=True)
         w_msg = (f"Hello, Team\nCurrently, the balance of the merchants is too high.\nTo ensure a safe balance, please proceed with USDT settlement.\n\nBalance update\n- {selected_m} : {fmt(w_bal)} krw")
         editable_box(w_msg, "red", "res_05")
 
     st.divider()
-    # 06. TOP-UP
     section_header("06", "TOP-UP 탑업", "#2ecc71")
     t1, t2 = st.columns(2)
     with t1: tb_val = extract_int(st.text_input("탑업 시세(빗썸)", key="t_b"))
