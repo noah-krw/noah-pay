@@ -4,10 +4,10 @@ import streamlit.components.v1 as components
 import math, json, os, re
 
 # ============================================================
-# 정산 매크로 v94.7 - [01번 2열 원복 / 06번 3열 고정 / 05번 포함]
+# 정산 매크로 v94.8 - [01번 2열 원복(진짜수정) / 06번 3열 완결]
 # ============================================================
 
-DB_FILE = "merchants_v18.json"
+DB_FILE = "merchants_v19.json" # DB 초기화를 위해 파일명 변경
 
 def get_default_data():
     return {
@@ -57,7 +57,7 @@ def editable_box(text, color_type="blue", box_id="default"):
         components.html(f"<script>navigator.clipboard.writeText(`{content}`);</script>", height=0)
         st.toast("복사 완료")
 
-st.set_page_config(page_title="정산 매크로 v94.7", layout="centered")
+st.set_page_config(page_title="정산 매크로 v94.8", layout="centered")
 
 st.markdown("""
 <style>
@@ -90,11 +90,12 @@ if st.session_state.page == 'settle':
     
     st.info(f"📝 비고: {m_info.get('note', '')}")
 
-    # 01. 정산 환율 및 요청 (2열 구도 원복 + USDT 입력칸 삭제)
+    # 01. 정산 환율 및 요청 (진짜 2열로 복구 완료)
     st.markdown('<div class="label-header">01. 정산 환율 및 요청</div>', unsafe_allow_html=True)
     sel_p = st.radio("적용 배수", ["4%", "4.5%", "5%"], index=0, horizontal=True)
     m_map = {"4%": 1.04, "4.5%": 1.045, "5%": 1.05}
     
+    # [수정] 정산(01)은 [빗썸/환율] 2열만 씁니다. (수량 입력칸 삭제됨)
     sc1, sc2 = st.columns(2)
     with sc1: sb_val = extract_int(st.text_input("빗썸 시세", key="s_b"))
     with sc2: ss_val = extract_int(st.text_input("수동 환율", key="s_s"))
@@ -103,6 +104,7 @@ if st.session_state.page == 'settle':
     if s_rate > 0:
         st.markdown(f'<div class="rate-guide">>>> 적용 환율 1usdt = {fmt(s_rate)} krw</div>', unsafe_allow_html=True)
     
+    # [중요] 정산은 KRW를 입력받는 한 줄 단독 입력창입니다.
     amt = extract_int(st.text_input("정산 금액 (KRW)", key="s_amt"))
     
     if amt > 0 and s_rate > 0:
@@ -129,52 +131,4 @@ if st.session_state.page == 'settle':
     st.markdown('<div class="label-header" style="color:#e74c3c;">04. 잔액 경고</div>', unsafe_allow_html=True)
     w_bal = extract_int(st.text_input("경고용 잔액", key="w_in"))
     if w_bal > 0:
-        w_msg = f"Hello, Team\nCurrently, the balance of the merchants is too high.\nTo ensure a safe balance, please proceed with USDT settlement.\nThank you\n\nBalance update\n\n- {selected_m} : {fmt(w_bal)} krw"
-        editable_box(w_msg, "red", box_id="res_04")
-
-    # 05. 환전(Payout) 요청
-    st.markdown('<div class="label-header">05. 환전(Payout) 요청</div>', unsafe_allow_html=True)
-    p_amt = extract_int(st.text_input("환전 금액 (KRW)", key="p_amt"))
-    if p_amt > 0:
-        p_msg = f"payout request\n\nmid : {selected_m}\npayout amount : {fmt(p_amt)} krw\n\nPlease check..."
-        editable_box(p_msg, "blue", box_id="res_05")
-
-    st.divider()
-    # 06. TOP-UP 요청 (3열 가로 구도 완결)
-    st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
-    t1, t2, t3 = st.columns(3)
-    with t1: tb_val = extract_int(st.text_input("탑업 시세(빗썸)", key="t_b"))
-    with t2: tu_amt = extract_int(st.text_input("수량(USDT)", key="t_u"))
-    with t3: ts_val = extract_int(st.text_input("수동 환율", key="t_s"))
-    
-    t_rate = ts_val if ts_val > 0 else (tb_val - math.ceil(tb_val * 0.005) if tb_val > 0 else 0)
-    if t_rate > 0:
-        st.markdown(f'<div class="rate-guide">>>> 적용 환율 1usdt = {fmt(t_rate)} krw</div>', unsafe_allow_html=True)
-        if tu_amt > 0:
-            total_t_krw = tu_amt * t_rate
-            my_w = st.session_state.db.get('my_wallet', '')
-            t_msg = f"top-up\n\nmid : {selected_m}\ntop-up amount : {fmt(tu_amt)} usdt\nexchange to KRW : {fmt(total_t_krw)} krw\n1usdt = {fmt(t_rate)} krw\n\n{my_w}\n\nPlease check..."
-            editable_box(t_msg, "green", box_id="res_06_req")
-            
-            base_p = ts_val if ts_val > 0 else tb_val
-            t_markup = math.ceil((tu_amt * base_p) * (m_fee / 100))
-            f_msg = f"드래곤 테더탑업 마크업 {m_fee}% {selected_m} / {fmt(tu_amt * base_p)} / {fmt(t_markup)}"
-            editable_box(f_msg, "yellow", box_id="res_06_fee")
-
-elif st.session_state.page == 'admin':
-    st.title("⚙️ 머천트 및 지갑 설정")
-    my_w = st.text_input("내 USDT 지갑 주소", value=st.session_state.db.get('my_wallet', ''))
-    if st.button("지갑 저장"):
-        st.session_state.db['my_wallet'] = my_w
-        save_data(st.session_state.db); st.success("저장 완료")
-    
-    st.divider()
-    for name in sorted(st.session_state.db['merchants'].keys()):
-        with st.expander(f"📦 {name} 관리"):
-            info = st.session_state.db['merchants'][name]
-            u_w = st.text_input("지갑", value=info['wallet'], key=f"ad_w_{name}")
-            u_f = st.text_input("요율", value=info['fee'], key=f"ad_f_{name}")
-            u_n = st.text_input("비고", value=info.get('note', ''), key=f"ad_n_{name}")
-            if st.button("저장", key=f"ad_s_{name}"):
-                st.session_state.db['merchants'][name] = {"wallet": u_w, "fee": u_f, "note": u_n}
-                save_data(st.session_state.db); st.rerun()
+        w_msg = f"Hello, Team\nCurrently, the balance of the merchants is too high.\nTo ensure a safe balance, please proceed with USDT settlement.\nThank you\n\nBalance
