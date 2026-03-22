@@ -411,11 +411,8 @@ if st.session_state.page == 'settle':
 
     import datetime
 
-    @st.cache_data(ttl=30, show_spinner=False)
-    def fetch_market_data(_ts):
-        # 빗썸 USDT/KRW
-        # 김프 = (업비트 BTC원화 ÷ (업비트 USDT원화 × 크라켄 BTC/USD)) - 1
-        # = 한국 BTC가격이 글로벌 대비 얼마나 비싼지 (네이버 방식과 동일)
+    # 캐시 없이 session_state 타이머로 직접 관리 (30초)
+    def fetch_market_data():
         bithumb, kimchi = 0, None
         try:
             r1 = requests.get("https://api.bithumb.com/public/ticker/USDT_KRW", timeout=3)
@@ -424,23 +421,23 @@ if st.session_state.page == 'settle':
         except: pass
         try:
             r2 = requests.get("https://api.upbit.com/v1/ticker?markets=KRW-BTC", timeout=3)
-            r3 = requests.get("https://api.upbit.com/v1/ticker?markets=KRW-USDT", timeout=3)
-            r4 = requests.get("https://api.kraken.com/0/public/Ticker?pair=XBTUSD", timeout=3)
-            upbit_btc  = float(r2.json()[0]["trade_price"])
-            upbit_usdt = float(r3.json()[0]["trade_price"])
-            kraken_btc = float(r4.json()["result"]["XXBTZUSD"]["c"][0])
-            if upbit_usdt > 0 and kraken_btc > 0:
-                global_btc_krw = upbit_usdt * kraken_btc
-                kimchi = round(((upbit_btc / global_btc_krw) - 1) * 100, 2)
+            r3 = requests.get("https://api.upbit.com/v1/ticker?markets=USDT-BTC", timeout=3)
+            upbit_btc_krw  = float(r2.json()[0]["trade_price"])
+            upbit_btc_usdt = float(r3.json()[0]["trade_price"])
+            if bithumb > 0 and upbit_btc_usdt > 0:
+                global_krw = upbit_btc_usdt * bithumb
+                kimchi = round(((upbit_btc_krw / global_krw) - 1) * 100, 2)
         except: pass
         return bithumb, kimchi
 
-    now_ts2 = int(time.time() // 30)
-    bithumb, kimchi = fetch_market_data(now_ts2)
-    st.session_state.bithumb_price = bithumb
-    st.session_state.kimchi = kimchi
-    st.session_state.usd_krw = bithumb
-    st.session_state.bithumb_ts = time.time()
+    now_ts2 = time.time()
+    last_fetch = st.session_state.get("bithumb_ts", 0)
+    if now_ts2 - last_fetch >= 30:
+        bithumb, kimchi = fetch_market_data()
+        st.session_state.bithumb_price = bithumb
+        st.session_state.kimchi = kimchi
+        st.session_state.usd_krw = bithumb
+        st.session_state.bithumb_ts = now_ts2
 
     live_price = st.session_state.get("bithumb_price", 0)
     kimchi     = st.session_state.get("kimchi", None)
