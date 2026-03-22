@@ -411,45 +411,19 @@ if st.session_state.page == 'settle':
 
     import datetime
 
-    # 네이버 파이낸스 API로 빗썸 시세 + 한국 프리미엄 직접 가져오기
-    def fetch_market_data():
-        bithumb, kimchi = 0, None
+    def fetch_bithumb():
         try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
-                'Referer': 'https://www.naver.com'
-            }
-            r = requests.get(
-                'https://api.stock.naver.com/coin/USDT/basicInfo',
-                headers=headers, timeout=4
-            )
-            data = r.json()
-            # 빗썸 현재가
-            for ex in data.get('exchangeList', []):
-                if ex.get('exchangeName') == '빗썸':
-                    bithumb = int(float(ex.get('closePrice', 0)))
-                    break
-            # 한국 프리미엄
-            premium = data.get('koreanPremium', None)
-            if premium is not None:
-                kimchi = round(float(premium), 2)
+            r = requests.get('https://api.bithumb.com/public/ticker/USDT_KRW', timeout=3)
+            if r.json().get('status') == '0000':
+                return int(float(r.json()['data']['closing_price']))
         except: pass
-        # 네이버 실패시 빗썸 직접 호출 fallback
-        if bithumb == 0:
-            try:
-                r2 = requests.get('https://api.bithumb.com/public/ticker/USDT_KRW', timeout=3)
-                if r2.json().get('status') == '0000':
-                    bithumb = int(float(r2.json()['data']['closing_price']))
-            except: pass
-        return bithumb, kimchi
+        return 0
 
     now_ts2 = time.time()
-    last_fetch = st.session_state.get("bithumb_ts", 0)
-    if now_ts2 - last_fetch >= 30:
-        bithumb, kimchi = fetch_market_data()
-        st.session_state.bithumb_price = bithumb
-        st.session_state.kimchi = kimchi
-        st.session_state.usd_krw = bithumb
+    if now_ts2 - st.session_state.get('bithumb_ts', 0) >= 30:
+        st.session_state.bithumb_price = fetch_bithumb()
+        st.session_state.kimchi = None
+        st.session_state.usd_krw = st.session_state.bithumb_price
         st.session_state.bithumb_ts = now_ts2
 
     live_price = st.session_state.get("bithumb_price", 0)
@@ -459,46 +433,35 @@ if st.session_state.page == 'settle':
     fetched_time = datetime.datetime.fromtimestamp(st.session_state.get("bithumb_ts", time.time()), tz=kst).strftime("%H:%M:%S")
 
     # ── 전광판 ────────────────────────────────────────────
-    if kimchi is not None:
-        k_color  = "#2ecc71" if kimchi >= 0 else "#e74c3c"
-        k_glow   = "rgba(46,204,113,0.3)" if kimchi >= 0 else "rgba(231,76,60,0.3)"
-        k_sign   = "+" if kimchi >= 0 else ""
-        k_label  = "PREMIUM" if kimchi >= 0 else "DISCOUNT"
-    else:
-        k_color, k_glow, k_sign, k_label = "#888", "transparent", "", "N/A"
 
     bithumb_str = ("&#8361; " + fmt(live_price)) if live_price > 0 else "&mdash;"
-    kimchi_str  = (k_sign + str(kimchi) + "%") if kimchi is not None else "&mdash;"
 
     html = (
         "<style>@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.15;}}</style>"
-        "<div style='padding:14px 20px;margin-bottom:14px;"
+        "<div style='padding:14px 22px;margin-bottom:14px;"
         "background:linear-gradient(135deg,#030f1c,#041810);"
         "border:1px solid rgba(93,173,226,0.3);border-radius:10px;"
         "box-shadow:0 0 18px rgba(93,173,226,0.1);"
         "display:flex;align-items:center;justify-content:space-between;'>"
-
-        "<div style='display:flex;align-items:center;gap:6px;'>"
-        "<span style='display:inline-block;width:6px;height:6px;border-radius:50%;"
-        "background:#2ecc71;box-shadow:0 0 6px #2ecc71;"
+        "<div style='display:flex;align-items:center;gap:8px;'>"
+        "<span style='display:inline-block;width:7px;height:7px;border-radius:50%;"
+        "background:#2ecc71;box-shadow:0 0 7px #2ecc71;"
         "animation:blink 1.5s infinite;'></span>"
-        "<span style='font-family:Space Mono,monospace;font-size:0.65em;"
-        "color:#5dade2;letter-spacing:0.1em;'>BITHUMB USDT/KRW</span>"
+        "<span style='font-family:Space Mono,monospace;font-size:0.68em;"
+        "color:#5dade2;letter-spacing:0.1em;'>BITHUMB &nbsp; USDT / KRW</span>"
         "</div>"
-
-        "<div style='font-family:Space Mono,monospace;font-size:1.7em;"
-        "font-weight:700;color:#fff;letter-spacing:0.03em;'>" + bithumb_str + "</div>"
-
+        "<div style='font-family:Space Mono,monospace;font-size:1.8em;"
+        "font-weight:700;color:#ffffff;letter-spacing:0.03em;'>" + bithumb_str + "</div>"
         "<div style='display:flex;align-items:center;gap:10px;'>"
-        "<span style='font-family:Space Mono,monospace;font-size:0.7em;"
-        "color:rgba(255,255,255,0.35);letter-spacing:0.08em;'>김프</span>"
-        "<span style='font-family:Space Mono,monospace;font-size:1.1em;"
-        "font-weight:700;color:" + k_color + ";"
-        "text-shadow:0 0 10px " + k_glow + ";'>" + kimchi_str + "</span>"
-        "</div>"
-
+        "<a href='https://search.naver.com/search.naver?query=빗썸+테더+시세' "
+        "target='_blank' style='"
+        "font-family:Space Mono,monospace;font-size:0.65em;font-weight:600;"
+        "color:#f39c12;border:1px solid rgba(243,156,18,0.45);border-radius:5px;"
+        "padding:4px 11px;text-decoration:none;letter-spacing:0.06em;"
+        "background:rgba(243,156,18,0.07);'>김프 확인 ↗</a>"
         "<div style='font-family:Space Mono,monospace;font-size:0.62em;"
-        "color:rgba(255,255,255,0.18);'>" + fetched_time + "</div>"
+        "color:rgba(255,255,255,0.2);'>" + fetched_time + "</div>"
+        "</div>"
         "</div>"
     )
     st.markdown(html, unsafe_allow_html=True)
