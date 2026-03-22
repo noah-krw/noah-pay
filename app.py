@@ -413,8 +413,9 @@ if st.session_state.page == 'settle':
 
     @st.cache_data(ttl=30, show_spinner=False)
     def fetch_market_data(_ts):
-        # 빗썸 USDT/KRW (= 달러환율 기준)
-        # 업비트 USDT/KRW ÷ 빗썸 USDT/KRW - 1 = 네이버 김프와 동일 방식
+        # 빗썸 USDT/KRW
+        # 김프 = (업비트 BTC원화 ÷ (업비트 USDT원화 × 크라켄 BTC/USD)) - 1
+        # = 한국 BTC가격이 글로벌 대비 얼마나 비싼지 (네이버 방식과 동일)
         bithumb, kimchi = 0, None
         try:
             r1 = requests.get("https://api.bithumb.com/public/ticker/USDT_KRW", timeout=3)
@@ -422,10 +423,15 @@ if st.session_state.page == 'settle':
                 bithumb = int(float(r1.json()["data"]["closing_price"]))
         except: pass
         try:
-            r2 = requests.get("https://api.upbit.com/v1/ticker?markets=KRW-USDT", timeout=3)
-            upbit_usdt = float(r2.json()[0]["trade_price"])
-            if bithumb > 0 and upbit_usdt > 0:
-                kimchi = round(((upbit_usdt / bithumb) - 1) * 100, 2)
+            r2 = requests.get("https://api.upbit.com/v1/ticker?markets=KRW-BTC", timeout=3)
+            r3 = requests.get("https://api.upbit.com/v1/ticker?markets=KRW-USDT", timeout=3)
+            r4 = requests.get("https://api.kraken.com/0/public/Ticker?pair=XBTUSD", timeout=3)
+            upbit_btc  = float(r2.json()[0]["trade_price"])
+            upbit_usdt = float(r3.json()[0]["trade_price"])
+            kraken_btc = float(r4.json()["result"]["XXBTZUSD"]["c"][0])
+            if upbit_usdt > 0 and kraken_btc > 0:
+                global_btc_krw = upbit_usdt * kraken_btc
+                kimchi = round(((upbit_btc / global_btc_krw) - 1) * 100, 2)
         except: pass
         return bithumb, kimchi
 
