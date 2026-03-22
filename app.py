@@ -473,8 +473,9 @@ if st.session_state.page == 'settle':
 
     sc1, sc2 = st.columns(2)
     with sc1:
-        sb_default = str(live_price) if live_price > 0 and not st.session_state.get("s_b") else st.session_state.get("s_b", "")
-        sb_val = extract_int(st.text_input("빗썸 시세", value=sb_default, key="s_b"))
+        if "s_b" not in st.session_state and live_price > 0:
+            st.session_state["s_b"] = str(live_price)
+        sb_val = extract_int(st.text_input("빗썸 시세", key="s_b"))
     with sc2: ss_val = extract_int(st.text_input("수동 환율", key="s_s"))
     s_rate = ss_val if ss_val > 0 else math.ceil(sb_val * m_map[sel_p])
 
@@ -539,8 +540,9 @@ if st.session_state.page == 'settle':
 
     t_row1_col1, t_row1_col2 = st.columns(2)
     with t_row1_col1:
-        tb_default = str(live_price) if live_price > 0 and not st.session_state.get("t_b") else st.session_state.get("t_b", "")
-        tb_val = extract_int(st.text_input("탑업 시세(빗썸)", value=tb_default, key="t_b"))
+        if "t_b" not in st.session_state and live_price > 0:
+            st.session_state["t_b"] = str(live_price)
+        tb_val = extract_int(st.text_input("탑업 시세(빗썸)", key="t_b"))
     with t_row1_col2: tu_amt = extract_int(st.text_input("수량(USDT)", key="t_u"))
 
     t_row2_col1, t_row2_col2 = st.columns(2)
