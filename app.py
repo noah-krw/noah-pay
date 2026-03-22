@@ -418,14 +418,26 @@ if st.session_state.page == 'settle':
             if r1.json().get('status') == '0000':
                 bithumb = int(float(r1.json()['data']['closing_price']))
         except: pass
-        # 김프 = 업비트 USDT ÷ 빗썸 USDT - 1 + 보정값
-        # 보정값 -0.16 → 네이버 한국 프리미엄 근사
+        # 김프 = 업비트 USDT ÷ 한국수출입은행 매매기준율 - 1
         try:
+            exim_key = st.secrets.get('EXIM_API_KEY', '')
             r2 = requests.get('https://api.upbit.com/v1/ticker?markets=KRW-USDT', timeout=3)
             upbit_usdt = float(r2.json()[0]['trade_price'])
-            if bithumb and bithumb > 0 and upbit_usdt > 0:
-                raw = ((upbit_usdt / bithumb) - 1) * 100
-                kimchi = round(raw - 0.09, 2)
+            if exim_key:
+                today = datetime.datetime.now().strftime('%Y%m%d')
+                r3 = requests.get(
+                    f'https://www.koreaexim.go.kr/site/program/financial/exchangeJSON'
+                    f'?authkey={exim_key}&searchdate={today}&data=AP01',
+                    timeout=4
+                )
+                for item in r3.json():
+                    if item.get('cur_unit') == 'USD':
+                        usd_krw = float(item['deal_bas_r'].replace(',', ''))
+                        if usd_krw > 0 and upbit_usdt > 0:
+                            kimchi = round(((upbit_usdt / usd_krw) - 1) * 100, 2)
+                        break
+            elif bithumb and bithumb > 0 and upbit_usdt > 0:
+                kimchi = round(((upbit_usdt / bithumb) - 1) * 100 - 0.09, 2)
         except: pass
         return bithumb, kimchi
 
