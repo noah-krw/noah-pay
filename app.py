@@ -4,7 +4,7 @@ import streamlit.components.v1 as components
 import math, json, os, re
 
 # ============================================================
-# 정산 매크로 v95.5 - [실장님 프로세스 100% 일치 및 06번 디자인 완결]
+# 정산 매크로 v95.5 - [06번 3열 구도 박제 / 01번 2열 원복]
 # ============================================================
 
 DB_FILE = "merchants_v95.json"
@@ -13,7 +13,9 @@ def get_default_data():
     return {
         'my_wallet': 'TDaQt8oASZhVsuaEdpevqCacGKseGKCWhQ',
         'merchants': {
-            'spfxm': {'wallet': 'TWbFbzW5GRkAkVrY4fLuXhNA576DCkoGbh', 'fee': '4', 'note': '메인 업체'}
+            'spfxm': {'wallet': 'TWbFbzW5GRkAkVrY4fLuXhNA576DCkoGbh', 'fee': '4', 'note': '가장 많이 사용하는 업체'},
+            'dr188': {'wallet': 'TBMTb9TFFXDuqhjLKLp9Yo26QHRnnG6jPN', 'fee': '0.5', 'note': '드래곤 메인'},
+            'V99': {'wallet': 'TRX_Wallet_V99', 'fee': '1.5', 'note': 'VVIP 전용'}
         }
     }
 
@@ -37,7 +39,7 @@ def extract_int(text):
 def fmt(n): return f"{n:,}"
 
 def editable_box(text, color_type="blue", box_id="default"):
-    if not text: return 
+    if not text: return
     colors = {
         "blue": {"border": "#4a90d9", "bg": "#060d18", "text": "#a8c7e8"},
         "green": {"border": "#27ae60", "bg": "#06180d", "text": "#7dcea0"},
@@ -57,12 +59,11 @@ def editable_box(text, color_type="blue", box_id="default"):
 
 st.set_page_config(page_title="정산 매크로 v95.5", layout="centered")
 
-# v89.8 디자인 테마 (금색 굵은 글자 + 흰색 창)
 st.markdown("""
 <style>
     [data-testid="stAppViewContainer"] { background-color: #0a0e17 !important; color: #c8d6e5 !important; }
     div[data-baseweb="input"] { background-color: #ffffff !important; border-radius: 6px !important; }
-    input { color: #d4ac0d !important; font-weight: bold !important; font-family: 'Courier New', monospace !important; font-size: 1.25em !important; }
+    input { color: #d4ac0d !important; -webkit-text-fill-color: #d4ac0d !important; font-weight: bold !important; font-family: 'Courier New', monospace !important; font-size: 1.25em !important; }
     .label-header { color: #4a90d9; font-weight: bold; font-size: 1.25em; border-bottom: 2px solid #1e2d45; padding-bottom: 8px; margin-top: 35px; margin-bottom: 15px; text-transform: uppercase; }
 </style>
 """, unsafe_allow_html=True)
@@ -70,6 +71,7 @@ st.markdown("""
 if 'db' not in st.session_state: st.session_state.db = load_data()
 if 'page' not in st.session_state: st.session_state.page = 'settle'
 
+# 사이드바
 with st.sidebar:
     st.title("💹 SETTLEMENT")
     if st.button("🚀 정산 작업"): st.session_state.page = 'settle'; st.rerun()
@@ -88,8 +90,8 @@ if st.session_state.page == 'settle':
     
     st.info(f"📝 비고: {m_info.get('note', '')}")
 
-    # 01. 정산 환율
-    st.markdown('<div class="label-header">01. 정산 환율</div>', unsafe_allow_html=True)
+    # 01. 정산 환율 및 요청
+    st.markdown('<div class="label-header">01. 정산 환율 및 요청</div>', unsafe_allow_html=True)
     sel_p = st.radio("적용 배수", ["4%", "4.5%", "5%"], index=0, horizontal=True)
     m_map = {"4%": 1.04, "4.5%": 1.045, "5%": 1.05}
     
@@ -101,7 +103,7 @@ if st.session_state.page == 'settle':
     if s_rate > 0:
         editable_box(f"1usdt = {fmt(s_rate)} krw", "sky", "rate_01")
     
-    # 02. 정산 멘트 생성 (금액 입력)
+    # 02. 정산 멘트 생성 (정산금액 입력)
     st.markdown('<div class="label-header">02. 정산 멘트 생성</div>', unsafe_allow_html=True)
     amt = extract_int(st.text_input("정산 금액 (KRW) 입력", key="s_amt"))
     if amt > 0 and s_rate > 0:
@@ -125,7 +127,7 @@ if st.session_state.page == 'settle':
         markup_msg = f"드래곤 테더정산 마크업 {m_fee}% {selected_m} / {fmt(amt)} / {fmt(markup)}"
         editable_box(markup_msg, "yellow", "res_04")
 
-    # 05. 05. 정산(세틀먼트) 요청
+    # 05. 05. 정산(세틀먼트) 요청 (이름 수정 완료)
     st.markdown('<div class="label-header" style="color:#e74c3c;">05. 정산(세틀먼트) 요청</div>', unsafe_allow_html=True)
     w_bal = extract_int(st.text_input("경고용 잔액 입력", key="w_in"))
     if w_bal > 0:
@@ -135,6 +137,8 @@ if st.session_state.page == 'settle':
     st.divider()
     # 06. TOP-UP 요청 (3열 디자인 박제)
     st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
+    
+    # [핵심] 가로 3열 입력칸 강제 고정
     t_col1, t_col2, t_col3 = st.columns(3)
     with t_col1: tb_val = extract_int(st.text_input("탑업 시세(빗썸)", key="t_b"))
     with t_col2: tu_amt = extract_int(st.text_input("수량(USDT)", key="t_u"))
@@ -147,17 +151,19 @@ if st.session_state.page == 'settle':
         if tu_amt > 0:
             total_t_krw = tu_amt * t_rate
             my_w = st.session_state.db.get('my_wallet', '')
-            t_msg = f"top-up\n\nmid : {selected_m}\ntop-up amount : {fmt(tu_amt)} usdt\nexchange to KRW : {fmt(total_t_krw)} krw\n1usdt = {fmt(t_rate)} krw\n\n{my_w}\n\nPlease check the invoice and transfer the USDT to the address provided."
+            # 스케치 멘트 수정 완료
+            t_msg = f"top-up\n\nmid : {selected_m}\ntop-up amount : {fmt(tu_amt)} usdt\nexchange to KRW : {fmt(total_t_krw)} krw\n1usdt = {fmt(t_rate)} krw\n\n{my_w}"
             editable_box(t_msg, "green", "res_06_req")
             
-            m_fee_t = float(m_info.get('fee', 0.5))
+            m_fee = float(m_info.get('fee', 0.5))
             base_p = ts_val if ts_val > 0 else tb_val
-            t_markup = math.ceil((tu_amt * base_p) * (m_fee_t / 100))
-            f_msg = f"드래곤 테더탑업 마크업 {m_fee_t}% {selected_m} / {fmt(tu_amt * base_p)} / {fmt(t_markup)}"
+            t_markup = math.ceil((tu_amt * base_p) * (m_fee / 100))
+            f_msg = f"드래곤 테더탑업 마크업 {m_fee}% {selected_m} / {fmt(tu_amt * base_p)} / {fmt(t_markup)}"
             editable_box(f_msg, "yellow", "res_06_fee")
 
 elif st.session_state.page == 'admin':
     st.title("⚙️ 머천트 및 지갑 관리")
+    # 관리 기능 복구 완료
     my_w = st.text_input("내 USDT 지갑 주소", value=st.session_state.db.get('my_wallet', ''))
     if st.button("내 지갑 저장"): 
         st.session_state.db['my_wallet'] = my_w
