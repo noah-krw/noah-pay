@@ -411,25 +411,33 @@ if st.session_state.page == 'settle':
 
     import datetime
 
-    def fetch_bithumb():
+    def fetch_market_data():
+        bithumb, kimchi = None, None
         try:
-            r = requests.get(
-                'https://api.bithumb.com/public/ticker/USDT_KRW',
-                timeout=1.5  # 1.5초 안에 안오면 그냥 이전값 유지
-            )
-            if r.json().get('status') == '0000':
-                return int(float(r.json()['data']['closing_price']))
+            r1 = requests.get('https://api.bithumb.com/public/ticker/USDT_KRW', timeout=3)
+            if r1.json().get('status') == '0000':
+                bithumb = int(float(r1.json()['data']['closing_price']))
         except: pass
-        return None  # None = 실패, 이전값 유지
+        try:
+            r2 = requests.get('https://api.upbit.com/v1/ticker?markets=KRW-USDT', timeout=3)
+            r3 = requests.get('https://latest.currency-api.pages.dev/v1/currencies/usd.json', timeout=4)
+            upbit_usdt = float(r2.json()[0]['trade_price'])
+            usd_krw    = float(r3.json()['usd']['krw'])
+            if usd_krw > 0:
+                kimchi = round(((upbit_usdt / usd_krw) - 1) * 100, 2)
+        except: pass
+        return bithumb, kimchi
 
     now_ts2 = time.time()
     if now_ts2 - st.session_state.get('bithumb_ts', 0) >= 30:
-        result = fetch_bithumb()
-        if result is not None:  # 성공했을 때만 업데이트
+        result, kimchi_result = fetch_market_data()
+        if result is not None:
             st.session_state.bithumb_price = result
             st.session_state.bithumb_ts = now_ts2
-        elif 'bithumb_price' not in st.session_state:  # 최초 실패시 0
+        elif 'bithumb_price' not in st.session_state:
             st.session_state.bithumb_price = 0
+        if kimchi_result is not None:
+            st.session_state.kimchi = kimchi_result
             st.session_state.bithumb_ts = now_ts2
         st.session_state.kimchi = None
         st.session_state.usd_krw = st.session_state.get('bithumb_price', 0)
@@ -443,6 +451,10 @@ if st.session_state.page == 'settle':
     # ── 전광판 ────────────────────────────────────────────
 
     bithumb_str = ("&#8361; " + fmt(live_price)) if live_price > 0 else "&mdash;"
+    k_color  = "#2ecc71" if kimchi is not None and kimchi >= 0 else "#e74c3c"
+    k_glow   = "rgba(46,204,113,0.3)" if kimchi is not None and kimchi >= 0 else "rgba(231,76,60,0.3)"
+    k_sign   = "+" if kimchi is not None and kimchi >= 0 else ""
+    kimchi_str = (k_sign + str(kimchi) + "%") if kimchi is not None else "&mdash;"
 
     html = (
         "<style>@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.15;}}</style>"
@@ -460,16 +472,14 @@ if st.session_state.page == 'settle':
         "</div>"
         "<div style='font-family:Space Mono,monospace;font-size:1.8em;"
         "font-weight:700;color:#ffffff;letter-spacing:0.03em;'>" + bithumb_str + "</div>"
-        "<div style='display:flex;align-items:center;gap:10px;'>"
-        "<a href='https://search.naver.com/search.naver?query=%EB%B9%97%EC%8D%B8+%ED%85%8C%EB%8D%94+%EC%8B%9C%EC%84%B8' "
-        "target='_blank' style='"
-        "font-family:Space Mono,monospace;font-size:0.65em;font-weight:600;"
-        "color:#f39c12;border:1px solid rgba(243,156,18,0.45);border-radius:5px;"
-        "padding:4px 11px;text-decoration:none;letter-spacing:0.06em;"
-        "background:rgba(243,156,18,0.07);'>김프 확인 ↗</a>"
+        "<div style='display:flex;align-items:center;gap:8px;'>"
+        "<span style='font-family:Space Mono,monospace;font-size:0.7em;"
+        "color:rgba(255,255,255,0.3);'>김프</span>"
+        "<span style='font-family:Space Mono,monospace;font-size:1.1em;font-weight:700;"
+        "color:" + k_color + ";text-shadow:0 0 8px " + k_glow + ";'>" + kimchi_str + "</span>"
+        "</div>"
         "<div style='font-family:Space Mono,monospace;font-size:0.62em;"
         "color:rgba(255,255,255,0.2);'>" + fetched_time + "</div>"
-        "</div>"
         "</div>"
     )
     st.markdown(html, unsafe_allow_html=True)
