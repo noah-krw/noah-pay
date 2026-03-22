@@ -4,7 +4,7 @@ import streamlit.components.v1 as components
 import math, json, os, re
 
 # ============================================================
-# 정산 매크로 v96.4 - [메인 타이틀 추가 및 라벨 텍스트 최종 수정]
+# 정산 매크로 v97.0 - [디자인 개선: 헤더, 복사버튼, 텍스트박스, 입력필드]
 # ============================================================
 
 DB_FILE = "merchants_v96.json"
@@ -37,62 +37,109 @@ def extract_int(text):
 def fmt(n): return f"{n:,}"
 
 def editable_box(text, color_type="blue", box_id="default"):
-    if not text: return 
+    if not text: return
     colors = {
-        "blue": {"border": "#4a90d9", "bg": "#060d18", "text": "#a8c7e8"},
-        "green": {"border": "#27ae60", "bg": "#01160a", "text": "#7dcea0"},
-        "yellow": {"border": "#f39c12", "bg": "#181406", "text": "#f8c471"},
-        "red": {"border": "#e74c3c", "bg": "#180606", "text": "#f1948a"},
-        "sky": {"border": "#5dade2", "bg": "#0a1a2f", "text": "#5dade2"}
+        "blue":   {"border": "#4a90d9", "glow": "rgba(74,144,217,0.25)", "bg": "#07101e", "text": "#a8c7e8", "btn_bg": "#0d2040", "btn_hover": "#4a90d9"},
+        "green":  {"border": "#2ecc71", "glow": "rgba(46,204,113,0.2)",  "bg": "#04120a", "text": "#7dcea0", "btn_bg": "#0a2016", "btn_hover": "#2ecc71"},
+        "yellow": {"border": "#f39c12", "glow": "rgba(243,156,18,0.2)",  "bg": "#16100a", "text": "#f8c471", "btn_bg": "#241800", "btn_hover": "#f39c12"},
+        "red":    {"border": "#e74c3c", "glow": "rgba(231,76,60,0.2)",   "bg": "#160608", "text": "#f1948a", "btn_bg": "#240808", "btn_hover": "#e74c3c"},
+        "sky":    {"border": "#5dade2", "glow": "rgba(93,173,226,0.2)",  "bg": "#081622", "text": "#5dade2", "btn_bg": "#0c1e30", "btn_hover": "#5dade2"},
     }
     c = colors.get(color_type, colors["blue"])
     line_count = text.count("\n") + 1
-    height = max(150, line_count * 25 + 80)
-    
+    height = max(160, line_count * 26 + 90)
+
     html_code = f"""
-    <div style="margin-bottom: 10px;">
-        <textarea id="copy_area_{box_id}" style="
-            width: 100%; 
-            height: {height-60}px; 
-            background-color: {c['bg']}; 
-            color: {c['text']}; 
-            border: none; 
-            border-left: 5px solid {c['border']}; 
-            font-family: 'Courier New', monospace; 
-            font-size: 15px; 
-            line-height: 1.5; 
-            padding: 10px; 
-            box-sizing: border-box; 
-            resize: vertical;
-        ">{text}</textarea>
-        <button id="btn_{box_id}" onclick="copyText_{box_id}()" style="
-            margin-top: 8px;
-            padding: 8px 16px;
-            background-color: #1e2d45;
-            color: white;
-            border: 1px solid {c['border']};
-            border-radius: 4px;
-            cursor: pointer;
-            font-family: sans-serif;
-            font-size: 14px;
-            transition: all 0.3s;
-        ">📋 복사하기</button>
+    <div style="margin-bottom:14px; position:relative;">
+        <div style="
+            border-left: 3px solid {c['border']};
+            border-radius: 0 8px 8px 0;
+            box-shadow: 0 0 18px {c['glow']}, inset 0 0 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+            background: {c['bg']};
+        ">
+            <textarea id="copy_area_{box_id}" readonly style="
+                width: 100%;
+                height: {height - 55}px;
+                background: transparent;
+                color: {c['text']};
+                border: none;
+                outline: none;
+                font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+                font-size: 14px;
+                line-height: 1.7;
+                padding: 14px 16px;
+                box-sizing: border-box;
+                resize: none;
+                cursor: text;
+                letter-spacing: 0.02em;
+            ">{text}</textarea>
+            <div style="
+                display: flex;
+                justify-content: flex-end;
+                padding: 8px 12px 10px;
+                border-top: 1px solid rgba(255,255,255,0.04);
+                background: rgba(0,0,0,0.2);
+            ">
+                <button id="btn_{box_id}" onclick="copyText_{box_id}()" style="
+                    display: flex;
+                    align-items: center;
+                    gap: 7px;
+                    padding: 7px 18px;
+                    background: {c['btn_bg']};
+                    color: {c['text']};
+                    border: 1px solid {c['border']};
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-family: 'Courier New', monospace;
+                    font-size: 13px;
+                    font-weight: 600;
+                    letter-spacing: 0.05em;
+                    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                    text-transform: uppercase;
+                " 
+                onmouseover="this.style.background='{c['btn_hover']}'; this.style.color='#000'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 15px {c['glow']}';"
+                onmouseout="this.style.background='{c['btn_bg']}'; this.style.color='{c['text']}'; this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    COPY
+                </button>
+            </div>
+        </div>
     </div>
     <script>
     function copyText_{box_id}() {{
         const textArea = document.getElementById('copy_area_{box_id}');
         const btn = document.getElementById('btn_{box_id}');
+        
+        // 선택 및 복사
+        textArea.removeAttribute('readonly');
         textArea.select();
+        textArea.setSelectionRange(0, 99999);
+        
         try {{
-            document.execCommand('copy');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '✅ 복사완료';
-            btn.style.backgroundColor = '{c['border']}';
-            setTimeout(() => {{
-                btn.innerHTML = originalText;
-                btn.style.backgroundColor = '#1e2d45';
-            }}, 1500);
+            const success = document.execCommand('copy');
+            textArea.setAttribute('readonly', true);
+            
+            if (success) {{
+                btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> COPIED`;
+                btn.style.background = '{c['border']}';
+                btn.style.color = '#000';
+                btn.style.borderColor = '{c['border']}';
+                btn.style.transform = 'scale(1.03)';
+                
+                setTimeout(() => {{
+                    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> COPY`;
+                    btn.style.background = '{c['btn_bg']}';
+                    btn.style.color = '{c['text']}';
+                    btn.style.borderColor = '{c['border']}';
+                    btn.style.transform = 'scale(1)';
+                }}, 1800);
+            }}
         }} catch (err) {{
+            textArea.setAttribute('readonly', true);
             console.error('복사 실패:', err);
         }}
     }}
@@ -100,33 +147,214 @@ def editable_box(text, color_type="blue", box_id="default"):
     """
     components.html(html_code, height=height)
 
-st.set_page_config(page_title="단계별 정산 시스템 v96.4", layout="centered")
+
+st.set_page_config(page_title="단계별 정산 시스템 v97", layout="centered")
 
 st.markdown("""
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+
 <style>
-    [data-testid="stAppViewContainer"] { background-color: #0a0e17 !important; color: #c8d6e5 !important; }
-    div[data-baseweb="input"] { background-color: #ffffff !important; border-radius: 6px !important; }
-    input { color: #d4ac0d !important; font-weight: bold !important; font-family: 'Courier New', monospace !important; font-size: 1.25em !important; }
-    .label-header { color: #4a90d9; font-weight: bold; font-size: 1.25em; border-bottom: 2px solid #1e2d45; padding-bottom: 8px; margin-top: 35px; margin-bottom: 15px; text-transform: uppercase; }
-    .rate-text { color: #5dade2; font-weight: bold; font-size: 1.1em; margin: 10px 0; font-family: monospace; }
-    .main-title { color: #4a90d9; font-size: 2.2em; font-weight: bold; text-align: center; margin-bottom: 30px; border-bottom: 3px solid #4a90d9; padding-bottom: 10px; }
+    /* ── 전체 배경 ── */
+    [data-testid="stAppViewContainer"] {
+        background-color: #060c16 !important;
+        background-image: 
+            radial-gradient(ellipse at 20% 0%, rgba(30,60,100,0.35) 0%, transparent 60%),
+            radial-gradient(ellipse at 80% 100%, rgba(20,80,60,0.2) 0%, transparent 60%);
+        color: #c8d6e5 !important;
+    }
+    [data-testid="stHeader"] { background: transparent !important; }
+    
+    /* ── 사이드바 ── */
+    [data-testid="stSidebar"] {
+        background: #080e1a !important;
+        border-right: 1px solid rgba(74,144,217,0.15) !important;
+    }
+    [data-testid="stSidebar"] button {
+        width: 100%;
+        background: #0d1a2e !important;
+        color: #7aa8cc !important;
+        border: 1px solid rgba(74,144,217,0.2) !important;
+        border-radius: 6px !important;
+        font-family: 'Space Mono', monospace !important;
+        font-size: 0.82em !important;
+        letter-spacing: 0.05em !important;
+        transition: all 0.2s ease !important;
+    }
+    [data-testid="stSidebar"] button:hover {
+        background: #1a2e48 !important;
+        border-color: #4a90d9 !important;
+        color: #a8c7e8 !important;
+    }
+
+    /* ── 메인 타이틀 ── */
+    .main-title {
+        font-family: 'Space Mono', monospace;
+        color: #4a90d9;
+        font-size: 1.6em;
+        font-weight: 700;
+        text-align: center;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        margin-bottom: 28px;
+        padding: 18px 0 16px;
+        border-bottom: 1px solid rgba(74,144,217,0.25);
+        position: relative;
+    }
+    .main-title::after {
+        content: '';
+        display: block;
+        width: 60px;
+        height: 2px;
+        background: linear-gradient(90deg, #4a90d9, transparent);
+        margin: 10px auto 0;
+    }
+
+    /* ── 섹션 헤더 ── */
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 32px;
+        margin-bottom: 14px;
+        padding: 10px 16px;
+        background: rgba(255,255,255,0.02);
+        border-radius: 8px;
+        border-left: 3px solid var(--hdr-color, #4a90d9);
+        position: relative;
+        overflow: hidden;
+    }
+    .section-header::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(90deg, rgba(var(--hdr-rgb, 74,144,217),0.08) 0%, transparent 100%);
+        pointer-events: none;
+    }
+    .section-header .num {
+        font-family: 'Space Mono', monospace;
+        font-size: 0.75em;
+        font-weight: 700;
+        color: var(--hdr-color, #4a90d9);
+        letter-spacing: 0.1em;
+        opacity: 0.7;
+        white-space: nowrap;
+    }
+    .section-header .title {
+        font-family: 'Noto Sans KR', sans-serif;
+        font-size: 0.92em;
+        font-weight: 700;
+        color: #d0dff0;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+    .section-header .line {
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, rgba(var(--hdr-rgb, 74,144,217),0.3) 0%, transparent 100%);
+    }
+
+    /* ── 입력 필드 ── */
+    div[data-baseweb="input"] {
+        background-color: #0b1525 !important;
+        border-radius: 7px !important;
+        border: 1px solid rgba(74,144,217,0.25) !important;
+        transition: border-color 0.2s ease !important;
+    }
+    div[data-baseweb="input"]:focus-within {
+        border-color: rgba(74,144,217,0.7) !important;
+        box-shadow: 0 0 0 2px rgba(74,144,217,0.1) !important;
+    }
+    input {
+        color: #d4ac0d !important;
+        font-weight: 700 !important;
+        font-family: 'Space Mono', monospace !important;
+        font-size: 1.1em !important;
+        background: transparent !important;
+        caret-color: #4a90d9 !important;
+    }
+    /* 라벨 */
+    label[data-testid="stWidgetLabel"] > div > p {
+        color: #6a8aaa !important;
+        font-size: 0.82em !important;
+        font-family: 'Space Mono', monospace !important;
+        letter-spacing: 0.06em !important;
+        text-transform: uppercase !important;
+    }
+    /* 라디오 */
+    [data-testid="stRadio"] label {
+        font-family: 'Space Mono', monospace !important;
+        font-size: 0.88em !important;
+        color: #7aa8cc !important;
+    }
+    /* 셀렉트박스 */
+    div[data-baseweb="select"] > div {
+        background-color: #0b1525 !important;
+        border: 1px solid rgba(74,144,217,0.25) !important;
+        border-radius: 7px !important;
+        color: #a8c7e8 !important;
+        font-family: 'Space Mono', monospace !important;
+    }
+
+    /* ── rate-text ── */
+    .rate-text {
+        font-family: 'Space Mono', monospace;
+        color: #5dade2;
+        font-size: 0.95em;
+        margin: 8px 0 6px;
+        padding: 8px 14px;
+        background: rgba(93,173,226,0.07);
+        border-radius: 6px;
+        letter-spacing: 0.04em;
+    }
+
+    /* ── divider ── */
+    hr {
+        border-color: rgba(74,144,217,0.1) !important;
+        margin: 24px 0 !important;
+    }
+
+    /* ── 스크롤바 ── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: #060c16; }
+    ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
+# ── 헤더 헬퍼 ──────────────────────────────────────────────
+def section_header(num, title, color="#4a90d9", rgb="74,144,217"):
+    st.markdown(f"""
+    <div class="section-header" style="--hdr-color:{color}; --hdr-rgb:{rgb};">
+        <span class="num">{num}</span>
+        <span class="title">{title}</span>
+        <span class="line"></span>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ── 세션 초기화 ────────────────────────────────────────────
 if 'db' not in st.session_state: st.session_state.db = load_data()
 if 'page' not in st.session_state: st.session_state.page = 'settle'
 
+# ── 사이드바 ───────────────────────────────────────────────
 with st.sidebar:
-    st.title("💹 SETTLEMENT")
-    if st.button("🚀 정산 작업"): st.session_state.page = 'settle'; st.rerun()
-    if st.button("⚙️ 머천트 관리"): st.session_state.page = 'admin'; st.rerun()
+    st.markdown("""
+    <div style="font-family:'Space Mono',monospace; font-size:1.1em; font-weight:700;
+                color:#4a90d9; letter-spacing:0.15em; text-align:center;
+                padding:10px 0 20px; border-bottom:1px solid rgba(74,144,217,0.2); margin-bottom:16px;">
+        💹 SETTLEMENT
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("🚀  정산 작업"): st.session_state.page = 'settle'; st.rerun()
+    if st.button("⚙️  머천트 관리"): st.session_state.page = 'admin'; st.rerun()
     st.divider()
-    if st.button("🔄 데이터 복구"):
+    if st.button("🔄  데이터 복구"):
         st.session_state.db = get_default_data()
         save_data(st.session_state.db); st.success("복구 완료"); st.rerun()
 
+# ══════════════════════════════════════════════════════════
+# 정산 페이지
+# ══════════════════════════════════════════════════════════
 if st.session_state.page == 'settle':
-    # 메인 상단 타이틀 추가
+
     st.markdown('<div class="main-title">단계별 정산 시스템</div>', unsafe_allow_html=True)
 
     merchants = st.session_state.db['merchants']
@@ -135,102 +363,136 @@ if st.session_state.page == 'settle':
     selected_m = st.selectbox("업체 선택", sorted_keys, index=default_idx)
     m_info = merchants[selected_m]
 
-    st.markdown('<div class="label-header">01. 정산 환율</div>', unsafe_allow_html=True)
+    # ── 01 ─────────────────────────────────────────────────
+    section_header("01", "정산 환율", "#4a90d9", "74,144,217")
     sel_p = st.radio("적용 배수", ["4%", "4.5%", "5%"], index=0, horizontal=True)
     m_map = {"4%": 1.04, "4.5%": 1.045, "5%": 1.05}
-    
+
     sc1, sc2 = st.columns(2)
     with sc1: sb_val = extract_int(st.text_input("빗썸 시세", key="s_b"))
     with sc2: ss_val = extract_int(st.text_input("수동 환율", key="s_s"))
     s_rate = ss_val if ss_val > 0 else math.ceil(sb_val * m_map[sel_p])
-    
+
     if s_rate > 0:
         editable_box(f"1usdt = {fmt(s_rate)} krw", "sky", "rate_01")
-    
-    st.markdown('<div class="label-header">02. 정산 멘트 생성</div>', unsafe_allow_html=True)
+
+    # ── 02 ─────────────────────────────────────────────────
+    section_header("02", "정산 멘트 생성", "#4a90d9", "74,144,217")
     amt = extract_int(st.text_input("정산 금액 (KRW) 입력", key="s_amt"))
     if amt > 0 and s_rate > 0:
         u_val = round(amt / s_rate, 2)
-        s_msg = f"- {selected_m} settlement amount : {fmt(amt)} krw\n- exchange to usdt : {u_val:,.2f} usdt\n- 1usdt = {fmt(s_rate)} krw\n\n{m_info['wallet']}\n\nPlease confirm the address and calculation.\nOnce approved, we will proceed immediately"
+        s_msg = (f"- {selected_m} settlement amount : {fmt(amt)} krw\n"
+                 f"- exchange to usdt : {u_val:,.2f} usdt\n"
+                 f"- 1usdt = {fmt(s_rate)} krw\n\n"
+                 f"{m_info['wallet']}\n\n"
+                 f"Please confirm the address and calculation.\n"
+                 f"Once approved, we will proceed immediately")
         editable_box(s_msg, "blue", "res_02")
 
-    st.markdown('<div class="label-header">03. 최종 잔액 보고</div>', unsafe_allow_html=True)
+    # ── 03 ─────────────────────────────────────────────────
+    section_header("03", "최종 잔액 보고", "#4a90d9", "74,144,217")
     bal_in = extract_int(st.text_input("현재 잔액 입력 (KRW)", key="bal_in"))
     if bal_in > 0 and amt > 0:
         u_ceil = math.ceil(amt / s_rate)
-        b_msg = f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {fmt(amt)} krw\nexchange to usdt : {fmt(u_ceil)} usdt\n1usdt = {fmt(s_rate)} krw\n\n- {selected_m} : {fmt(bal_in)} krw"
+        b_msg = (f"Balance & settlement update\n\n"
+                 f"- {selected_m}\n"
+                 f"settlement amount : {fmt(amt)} krw\n"
+                 f"exchange to usdt : {fmt(u_ceil)} usdt\n"
+                 f"1usdt = {fmt(s_rate)} krw\n\n"
+                 f"- {selected_m} : {fmt(bal_in)} krw")
         editable_box(b_msg, "green", "res_03")
 
-    st.markdown('<div class="label-header">04. 마크업 수수료</div>', unsafe_allow_html=True)
+    # ── 04 ─────────────────────────────────────────────────
+    section_header("04", "마크업 수수료", "#f39c12", "243,156,18")
     if amt > 0:
         m_fee = float(m_info.get('fee', 0.5))
         markup = math.ceil(amt * (m_fee / 100))
         markup_msg = f"드래곤 테더정산 마크업 {m_fee}% {selected_m} / {fmt(amt)} / {fmt(markup)}"
         editable_box(markup_msg, "yellow", "res_04")
 
-    # 05번 텍스트 수정: 정산(SETTLEMENT) 요청
-    st.markdown('<div class="label-header" style="color:#e74c3c;">05. 정산(SETTLEMENT) 요청</div>', unsafe_allow_html=True)
+    # ── 05 ─────────────────────────────────────────────────
+    section_header("05", "정산 (SETTLEMENT) 요청", "#e74c3c", "231,76,60")
     w_bal = extract_int(st.text_input("하이 밸런스 경고용 잔액", key="w_in"))
     if w_bal > 0:
-        st.markdown(f'<p class="rate-text">>>> 적용 환율 1usdt = {fmt(s_rate)} krw</p>', unsafe_allow_html=True)
-        w_msg = f"Hello, Team\nCurrently, the balance of the merchants is too high.\nTo ensure a safe balance, please proceed with USDT settlement.\nThank you\n\nBalance update\n\n- {selected_m} : {fmt(w_bal)} krw"
+        st.markdown(f'<p class="rate-text">▸ 적용 환율 &nbsp; 1usdt = {fmt(s_rate)} krw</p>', unsafe_allow_html=True)
+        w_msg = (f"Hello, Team\n"
+                 f"Currently, the balance of the merchants is too high.\n"
+                 f"To ensure a safe balance, please proceed with USDT settlement.\n"
+                 f"Thank you\n\n"
+                 f"Balance update\n\n"
+                 f"- {selected_m} : {fmt(w_bal)} krw")
         editable_box(w_msg, "red", "res_05")
 
     st.divider()
-    # 06번 텍스트 수정: TOP-UP 탑업
-    st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 탑업</div>', unsafe_allow_html=True)
-    
+
+    # ── 06 ─────────────────────────────────────────────────
+    section_header("06", "TOP-UP 탑업", "#2ecc71", "46,204,113")
+
     t_row1_col1, t_row1_col2 = st.columns(2)
     with t_row1_col1: tb_val = extract_int(st.text_input("탑업 시세(빗썸)", key="t_b"))
     with t_row1_col2: tu_amt = extract_int(st.text_input("수량(USDT)", key="t_u"))
-    
+
     t_row2_col1, t_row2_col2 = st.columns(2)
     with t_row2_col1: ts_val = extract_int(st.text_input("수동 환율", key="t_s"))
     with t_row2_col2:
         t_rate = ts_val if ts_val > 0 else (tb_val - math.ceil(tb_val * 0.005) if tb_val > 0 else 0)
         if t_rate > 0:
-            st.markdown(f"<div style='padding-top:32px; color:#5dade2; font-family:Courier New; font-size:1.1em;'>1usdt = {fmt(t_rate)} krw</div>", unsafe_allow_html=True)
-            
+            st.markdown(
+                f"<div style='padding-top:32px; font-family:Space Mono,monospace; "
+                f"color:#5dade2; font-size:0.95em; letter-spacing:0.04em;'>"
+                f"1usdt = {fmt(t_rate)} krw</div>",
+                unsafe_allow_html=True
+            )
+
     if tu_amt > 0 and t_rate > 0:
         total_t_krw = tu_amt * t_rate
         my_w = st.session_state.db.get('my_wallet', '')
-        t_msg = f"top-up\n\nmid : {selected_m}\ntop-up amount : {fmt(tu_amt)} usdt\nexchange to KRW : {fmt(total_t_krw)} krw\n1usdt = {fmt(t_rate)} krw\n\n{my_w}\n\nPlease check the invoice and transfer the USDT to the address provided."
+        t_msg = (f"top-up\n\n"
+                 f"mid : {selected_m}\n"
+                 f"top-up amount : {fmt(tu_amt)} usdt\n"
+                 f"exchange to KRW : {fmt(total_t_krw)} krw\n"
+                 f"1usdt = {fmt(t_rate)} krw\n\n"
+                 f"{my_w}\n\n"
+                 f"Please check the invoice and transfer the USDT to the address provided.")
         editable_box(t_msg, "green", "res_06_req")
-        
+
         m_fee_t = float(m_info.get('fee', 0.5))
         base_p = ts_val if ts_val > 0 else tb_val
         t_markup = math.ceil((tu_amt * base_p) * (m_fee_t / 100))
         f_msg = f"드래곤 테더탑업 마크업 {m_fee_t}% {selected_m} / {fmt(tu_amt * base_p)} / {fmt(t_markup)}"
         editable_box(f_msg, "yellow", "res_06_fee")
 
+# ══════════════════════════════════════════════════════════
+# 관리자 페이지
+# ══════════════════════════════════════════════════════════
 elif st.session_state.page == 'admin':
-    st.title("⚙️ 머천트 및 지갑 관리")
+    st.markdown('<div class="main-title">머천트 및 지갑 관리</div>', unsafe_allow_html=True)
+
     my_w = st.text_input("내 USDT 지갑 주소", value=st.session_state.db.get('my_wallet', ''))
-    if st.button("내 지갑 저장"): 
+    if st.button("내 지갑 저장"):
         st.session_state.db['my_wallet'] = my_w
         save_data(st.session_state.db); st.toast("지갑 정보가 저장되었습니다.")
-    
+
     st.divider()
     with st.form("new_merchant"):
         st.subheader("➕ 업체 추가")
-        n_name = st.text_input("업체명")
+        n_name   = st.text_input("업체명")
         n_wallet = st.text_input("지갑주소")
-        n_fee = st.text_input("마크업 수수료 (%)", value="0.5")
-        n_note = st.text_input("비고")
+        n_fee    = st.text_input("마크업 수수료 (%)", value="0.5")
+        n_note   = st.text_input("비고")
         if st.form_submit_button("등록"):
             st.session_state.db['merchants'][n_name] = {"wallet": n_wallet, "fee": n_fee, "note": n_note}
             save_data(st.session_state.db); st.toast(f"{n_name} 업체 등록됨"); st.rerun()
-            
+
     st.divider()
     for name in sorted(st.session_state.db['merchants'].keys()):
         with st.expander(f"📦 {name} 관리"):
             info = st.session_state.db['merchants'][name]
-            u_w = st.text_input("지갑주소", value=info['wallet'], key=f"w_{name}")
-            u_f = st.text_input("마크업 수수료 (%)", value=info['fee'], key=f"f_{name}")
-            u_n = st.text_input("비고", value=info.get('note', ''), key=f"n_{name}")
+            u_w = st.text_input("지갑주소",          value=info['wallet'],          key=f"w_{name}")
+            u_f = st.text_input("마크업 수수료 (%)", value=info['fee'],             key=f"f_{name}")
+            u_n = st.text_input("비고",              value=info.get('note', ''),   key=f"n_{name}")
             if st.button("변경사항 저장", key=f"s_{name}"):
                 st.session_state.db['merchants'][name] = {"wallet": u_w, "fee": u_f, "note": u_n}
-                save_data(st.session_state.db)
-                st.toast(f"{name} 변경사항이 저장되었습니다.")
-            if st.button("삭제", key=f"d_{name}"): 
+                save_data(st.session_state.db); st.toast(f"{name} 변경사항이 저장되었습니다.")
+            if st.button("삭제", key=f"d_{name}"):
                 del st.session_state.db['merchants'][name]; save_data(st.session_state.db); st.rerun()
