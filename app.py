@@ -439,8 +439,6 @@ if st.session_state.page == 'settle':
         if kimchi_result is not None:
             st.session_state.kimchi = kimchi_result
             st.session_state.bithumb_ts = now_ts2
-        st.session_state.kimchi = None
-        st.session_state.usd_krw = st.session_state.get('bithumb_price', 0)
 
     live_price = st.session_state.get("bithumb_price", 0)
     kimchi     = st.session_state.get("kimchi", None)
