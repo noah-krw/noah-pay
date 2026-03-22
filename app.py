@@ -4,7 +4,7 @@ import streamlit.components.v1 as components
 import math, json, os, re
 
 # ============================================================
-# 정산 매크로 v96.2 - [알림창 제거 및 버튼 상태 피드백형]
+# 정산 매크로 v96.4 - [메인 타이틀 추가 및 라벨 텍스트 최종 수정]
 # ============================================================
 
 DB_FILE = "merchants_v96.json"
@@ -100,7 +100,7 @@ def editable_box(text, color_type="blue", box_id="default"):
     """
     components.html(html_code, height=height)
 
-st.set_page_config(page_title="정산 매크로 v96.2", layout="centered")
+st.set_page_config(page_title="단계별 정산 시스템 v96.4", layout="centered")
 
 st.markdown("""
 <style>
@@ -109,6 +109,7 @@ st.markdown("""
     input { color: #d4ac0d !important; font-weight: bold !important; font-family: 'Courier New', monospace !important; font-size: 1.25em !important; }
     .label-header { color: #4a90d9; font-weight: bold; font-size: 1.25em; border-bottom: 2px solid #1e2d45; padding-bottom: 8px; margin-top: 35px; margin-bottom: 15px; text-transform: uppercase; }
     .rate-text { color: #5dade2; font-weight: bold; font-size: 1.1em; margin: 10px 0; font-family: monospace; }
+    .main-title { color: #4a90d9; font-size: 2.2em; font-weight: bold; text-align: center; margin-bottom: 30px; border-bottom: 3px solid #4a90d9; padding-bottom: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -125,6 +126,9 @@ with st.sidebar:
         save_data(st.session_state.db); st.success("복구 완료"); st.rerun()
 
 if st.session_state.page == 'settle':
+    # 메인 상단 타이틀 추가
+    st.markdown('<div class="main-title">단계별 정산 시스템</div>', unsafe_allow_html=True)
+
     merchants = st.session_state.db['merchants']
     sorted_keys = sorted(list(merchants.keys()))
     default_idx = sorted_keys.index('spfxm') if 'spfxm' in sorted_keys else 0
@@ -164,7 +168,8 @@ if st.session_state.page == 'settle':
         markup_msg = f"드래곤 테더정산 마크업 {m_fee}% {selected_m} / {fmt(amt)} / {fmt(markup)}"
         editable_box(markup_msg, "yellow", "res_04")
 
-    st.markdown('<div class="label-header" style="color:#e74c3c;">05. 정산(세틀먼트) 요청</div>', unsafe_allow_html=True)
+    # 05번 텍스트 수정: 정산(SETTLEMENT) 요청
+    st.markdown('<div class="label-header" style="color:#e74c3c;">05. 정산(SETTLEMENT) 요청</div>', unsafe_allow_html=True)
     w_bal = extract_int(st.text_input("하이 밸런스 경고용 잔액", key="w_in"))
     if w_bal > 0:
         st.markdown(f'<p class="rate-text">>>> 적용 환율 1usdt = {fmt(s_rate)} krw</p>', unsafe_allow_html=True)
@@ -172,7 +177,8 @@ if st.session_state.page == 'settle':
         editable_box(w_msg, "red", "res_05")
 
     st.divider()
-    st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
+    # 06번 텍스트 수정: TOP-UP 탑업
+    st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 탑업</div>', unsafe_allow_html=True)
     
     t_row1_col1, t_row1_col2 = st.columns(2)
     with t_row1_col1: tb_val = extract_int(st.text_input("탑업 시세(빗썸)", key="t_b"))
