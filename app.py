@@ -421,28 +421,27 @@ if st.session_state.page == 'settle':
         except: pass
         return 0
 
-    @st.cache_data(ttl=30, show_spinner=False)
+    @st.cache_data(ttl=60, show_spinner=False)
     def fetch_all_market_data(_ts):
         bithumb, kimchi, usd_krw = 0, None, 0
         try:
-            res = requests.get("https://api.bithumb.com/public/ticker/USDT_KRW", timeout=2)
+            # CoinGecko: tether 가격 (krw + usd) + 한국 프리미엄
+            url = "https://api.coingecko.com/api/v3/simple/price?ids=tether,bitcoin&vs_currencies=krw,usd"
+            res = requests.get(url, timeout=4)
             data = res.json()
-            if data.get("status") == "0000":
-                bithumb = int(float(data["data"]["closing_price"]))
-        except: pass
-        try:
-            r1 = requests.get("https://api.upbit.com/v1/ticker?markets=KRW-BTC", timeout=2)
-            r2 = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=2)
-            krw_btc = float(r1.json()[0]["trade_price"])
-            usd_btc = float(r2.json()["price"])
-            # 달러환율: 빗썸 USDT 시세 그대로 활용 (이미 가져왔으므로 추가 API 불필요)
-            if bithumb > 0:
-                usd_krw = bithumb
-                kimchi = round(((krw_btc / (usd_btc * usd_krw)) - 1) * 100, 2)
+            usdt_krw = data.get("tether", {}).get("krw", 0)
+            usd_krw  = int(data.get("bitcoin", {}).get("krw", 0) / data.get("bitcoin", {}).get("usd", 1)) if data.get("bitcoin", {}).get("usd") else 0
+            if usdt_krw:
+                bithumb = int(usdt_krw)
+            # 김프: 빗썸 BTC/KRW ÷ (글로벌 BTC/USD × USD/KRW) - 1
+            btc_krw_kr  = data.get("bitcoin", {}).get("krw", 0)
+            btc_usd_gl  = data.get("bitcoin", {}).get("usd", 0)
+            if btc_krw_kr and btc_usd_gl and usd_krw:
+                kimchi = round(((btc_krw_kr / (btc_usd_gl * usd_krw)) - 1) * 100, 2)
         except: pass
         return bithumb, kimchi, usd_krw
 
-    now_ts = int(time.time() // 30)  # 30초 버킷
+    now_ts = int(time.time() // 60)
     bithumb, kimchi, usd_krw = fetch_all_market_data(now_ts)
     st.session_state.bithumb_price = bithumb
     st.session_state.kimchi = kimchi
