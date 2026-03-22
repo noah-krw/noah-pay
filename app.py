@@ -4,10 +4,10 @@ import streamlit.components.v1 as components
 import math, json, os, re
 
 # ============================================================
-# 정산 매크로 v95.6 - [06번 3열 구도 및 실장님 순서 박제본]
+# 정산 매크로 v95.7 - [실장님 메모장 구도 강제 집행본]
 # ============================================================
 
-DB_FILE = "merchants_final.json"
+DB_FILE = "merchants_v95_final.json"
 
 def get_default_data():
     return {
@@ -47,7 +47,7 @@ def editable_box(text, color_type="blue", box_id="default"):
     }
     c = colors.get(color_type, colors["blue"])
     line_count = text.count("\n") + 1
-    height = max(110, line_count * 25 + 50)
+    height = max(115, line_count * 25 + 55)
     
     st.markdown(f"""<style>textarea[aria-label="{box_id}"] {{ background-color: {c['bg']} !important; color: {c['text']} !important; border-left: 5px solid {c['border']} !important; font-family: 'Courier New', monospace !important; font-size: 15px !important; line-height: 1.5 !important; }}</style>""", unsafe_allow_html=True)
     content = st.text_area(label=box_id, value=text, height=height, label_visibility="collapsed")
@@ -55,14 +55,17 @@ def editable_box(text, color_type="blue", box_id="default"):
         components.html(f"<script>navigator.clipboard.writeText(`{content}`);</script>", height=0)
         st.toast("복사 완료")
 
-st.set_page_config(page_title="정산 매크로 v95.6", layout="centered")
+st.set_page_config(page_title="정산 매크로 v95.7", layout="centered")
 
+# UI 디자인 및 가로배치 강제 유지 CSS
 st.markdown("""
 <style>
     [data-testid="stAppViewContainer"] { background-color: #0a0e17 !important; color: #c8d6e5 !important; }
     div[data-baseweb="input"] { background-color: #ffffff !important; border-radius: 6px !important; }
     input { color: #d4ac0d !important; font-weight: bold !important; font-family: 'Courier New', monospace !important; font-size: 1.25em !important; }
     .label-header { color: #4a90d9; font-weight: bold; font-size: 1.25em; border-bottom: 2px solid #1e2d45; padding-bottom: 8px; margin-top: 35px; margin-bottom: 15px; text-transform: uppercase; }
+    /* 가로 3열이 좁은 화면에서도 최대한 유지되게 강제 */
+    [data-testid="column"] { min-width: 150px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -84,8 +87,10 @@ if st.session_state.page == 'settle':
     default_idx = sorted_keys.index('spfxm') if 'spfxm' in sorted_keys else 0
     selected_m = st.selectbox("업체 선택", sorted_keys, index=default_idx)
     m_info = merchants[selected_m]
+    
+    st.info(f"📝 비고: {m_info.get('note', '')}")
 
-    # 01. 정산 환율 (가로 2열)
+    # 01. 정산 환율
     st.markdown('<div class="label-header">01. 정산 환율</div>', unsafe_allow_html=True)
     sel_p = st.radio("적용 배수", ["4%", "4.5%", "5%"], index=0, horizontal=True)
     m_map = {"4%": 1.04, "4.5%": 1.045, "5%": 1.05}
@@ -98,7 +103,7 @@ if st.session_state.page == 'settle':
     if s_rate > 0:
         editable_box(f"1usdt = {fmt(s_rate)} krw", "sky", "rate_01")
     
-    # 02. 정산 멘트 생성 (멘트 누락 방지)
+    # 02. 정산 멘트 생성 (금액 입력)
     st.markdown('<div class="label-header">02. 정산 멘트 생성</div>', unsafe_allow_html=True)
     amt = extract_int(st.text_input("정산 금액 (KRW) 입력", key="s_amt"))
     if amt > 0 and s_rate > 0:
@@ -122,15 +127,15 @@ if st.session_state.page == 'settle':
         markup_msg = f"드래곤 테더정산 마크업 {m_fee}% {selected_m} / {fmt(amt)} / {fmt(markup)}"
         editable_box(markup_msg, "yellow", "res_04")
 
-    # 05. 05. 정산(세틀먼트) 요청 (순서 및 제목 고정)
+    # 05. 정산(세틀먼트) 요청 (순서 및 명칭 수정 완료)
     st.markdown('<div class="label-header" style="color:#e74c3c;">05. 정산(세틀먼트) 요청</div>', unsafe_allow_html=True)
-    w_bal = extract_int(st.text_input("경고용 잔액 입력", key="w_in"))
+    w_bal = extract_int(st.text_input("하이 밸런스 경고용 잔액", key="w_in"))
     if w_bal > 0:
         w_msg = f"Hello, Team\nCurrently, the balance of the merchants is too high.\nTo ensure a safe balance, please proceed with USDT settlement.\nThank you\n\nBalance update\n\n- {selected_m} : {fmt(w_bal)} krw"
         editable_box(w_msg, "red", "res_05")
 
     st.divider()
-    # 06. TOP-UP 요청 (가로 3열 구도 박제)
+    # 06. TOP-UP 요청 (3열 디자인 박제 및 멘트 수정)
     st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
     t_col1, t_col2, t_col3 = st.columns(3)
     with t_col1: tb_val = extract_int(st.text_input("탑업 시세(빗썸)", key="t_b"))
@@ -156,9 +161,9 @@ if st.session_state.page == 'settle':
 elif st.session_state.page == 'admin':
     st.title("⚙️ 머천트 및 지갑 관리")
     my_w = st.text_input("내 USDT 지갑 주소", value=st.session_state.db.get('my_wallet', ''))
-    if st.button("내 지갑 저장"): 
+    if st.button("지갑 저장"): 
         st.session_state.db['my_wallet'] = my_w
-        save_data(st.session_state.db); st.toast("지갑 정보 저장됨")
+        save_data(st.session_state.db); st.toast("지갑 정보가 저장되었습니다.")
     
     st.divider()
     with st.form("new_merchant"):
@@ -169,7 +174,7 @@ elif st.session_state.page == 'admin':
         n_note = st.text_input("비고")
         if st.form_submit_button("등록"):
             st.session_state.db['merchants'][n_name] = {"wallet": n_wallet, "fee": n_fee, "note": n_note}
-            save_data(st.session_state.db); st.toast(f"{n_name} 등록됨"); st.rerun()
+            save_data(st.session_state.db); st.toast(f"{n_name} 업체 등록됨"); st.rerun()
             
     st.divider()
     for name in sorted(st.session_state.db['merchants'].keys()):
@@ -179,6 +184,6 @@ elif st.session_state.page == 'admin':
             st.session_state.db['merchants'][name]['fee'] = st.text_input("요율", value=info['fee'], key=f"f_{name}")
             st.session_state.db['merchants'][name]['note'] = st.text_input("비고", value=info.get('note',''), key=f"n_{name}")
             if st.button("변경저장", key=f"s_{name}"):
-                save_data(st.session_state.db); st.toast(f"{name} 변경됨")
+                save_data(st.session_state.db); st.toast(f"{name} 변경사항 저장됨")
             if st.button("삭제", key=f"d_{name}"): 
                 del st.session_state.db['merchants'][name]; save_data(st.session_state.db); st.rerun()
