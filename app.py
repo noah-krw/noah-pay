@@ -407,7 +407,7 @@ with st.sidebar:
 # ══════════════════════════════════════════════════════════
 if st.session_state.page == 'settle':
 
-    st.markdown('<div class="main-title">단계별 정산 시스템</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-title">USDT 정산</div>', unsafe_allow_html=True)
 
     merchants = st.session_state.db['merchants']
     sorted_keys = sorted(list(merchants.keys()))
@@ -550,6 +550,39 @@ elif st.session_state.page == 'topup':
     m_info = merchants[selected_m]
 
     live_price = st.session_state.get("bithumb_price", 0)
+    kst = datetime.timezone(datetime.timedelta(hours=9))
+    fetched_time = datetime.datetime.fromtimestamp(st.session_state.get("bithumb_ts", time.time()), tz=kst).strftime("%H:%M:%S")
+    bithumb_str = ("&#8361; " + fmt(live_price)) if live_price > 0 else "&mdash;"
+
+    topup_html = (
+        "<style>@keyframes blink2{0%,100%{opacity:1;}50%{opacity:0.15;}}</style>"
+        "<div style='padding:14px 22px;margin-bottom:14px;"
+        "background:linear-gradient(135deg,#030f1c,#041810);"
+        "border:1px solid rgba(93,173,226,0.3);border-radius:10px;"
+        "box-shadow:0 0 18px rgba(93,173,226,0.1);"
+        "display:flex;align-items:center;justify-content:space-between;'>"
+        "<div style='display:flex;align-items:center;gap:8px;'>"
+        "<span style='display:inline-block;width:7px;height:7px;border-radius:50%;"
+        "background:#2ecc71;box-shadow:0 0 7px #2ecc71;"
+        "animation:blink2 1.5s infinite;'></span>"
+        "<span style='font-family:Space Mono,monospace;font-size:0.68em;"
+        "color:#5dade2;letter-spacing:0.1em;'>BITHUMB &nbsp; USDT / KRW</span>"
+        "</div>"
+        "<div style='display:flex;flex-direction:column;align-items:center;gap:3px;'>"
+        "<div style='font-family:Space Mono,monospace;font-size:1.8em;"
+        "font-weight:700;color:#ffffff;letter-spacing:0.03em;'>" + bithumb_str + "</div>"
+        "<div style='font-family:Space Mono,monospace;font-size:0.68em;"
+        "color:#5dade2;letter-spacing:0.1em;'>" + fetched_time + "</div>"
+        "</div>"
+        "<a href='https://search.naver.com/search.naver?query=%EB%B9%97%EC%8D%B8+%ED%85%8C%EB%8D%94+%EC%8B%9C%EC%84%B8' "
+        "target='_blank' style='"
+        "font-family:Space Mono,monospace;font-size:0.85em;font-weight:700;"
+        "color:#2ecc71;border:1px solid rgba(46,204,113,0.5);border-radius:8px;"
+        "padding:10px 20px;text-decoration:none;letter-spacing:0.08em;"
+        "background:rgba(46,204,113,0.08);box-shadow:0 0 12px rgba(46,204,113,0.15);'>김프 확인</a>"
+        "</div>"
+    )
+    st.markdown(topup_html, unsafe_allow_html=True)
 
     section_header("01", "TOP-UP 탑업", "#2ecc71", "46,204,113")
 
