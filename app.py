@@ -418,13 +418,13 @@ if st.session_state.page == 'settle':
             if r1.json().get('status') == '0000':
                 bithumb = int(float(r1.json()['data']['closing_price']))
         except: pass
+        # 김프 = 업비트 USDT/KRW ÷ 빗썸 USDT/KRW - 1
+        # 빗썸 USDT ≈ 매매기준율 역할 → 네이버와 가장 근접
         try:
             r2 = requests.get('https://api.upbit.com/v1/ticker?markets=KRW-USDT', timeout=3)
-            r3 = requests.get('https://latest.currency-api.pages.dev/v1/currencies/usd.json', timeout=4)
             upbit_usdt = float(r2.json()[0]['trade_price'])
-            usd_krw    = float(r3.json()['usd']['krw'])
-            if usd_krw > 0:
-                kimchi = round(((upbit_usdt / usd_krw) - 1) * 100, 2)
+            if bithumb and bithumb > 0:
+                kimchi = round(((upbit_usdt / bithumb) - 1) * 100, 2)
         except: pass
         return bithumb, kimchi
 
@@ -471,10 +471,16 @@ if st.session_state.page == 'settle':
         "<div style='font-family:Space Mono,monospace;font-size:1.8em;"
         "font-weight:700;color:#ffffff;letter-spacing:0.03em;'>" + bithumb_str + "</div>"
         "<div style='display:flex;align-items:center;gap:8px;'>"
+        "<div style='display:flex;flex-direction:column;align-items:center;gap:2px;'>"
+        "<div style='display:flex;align-items:center;gap:6px;'>"
         "<span style='font-family:Space Mono,monospace;font-size:0.7em;"
         "color:rgba(255,255,255,0.3);'>김프</span>"
         "<span style='font-family:Space Mono,monospace;font-size:1.1em;font-weight:700;"
         "color:" + k_color + ";text-shadow:0 0 8px " + k_glow + ";'>" + kimchi_str + "</span>"
+        "</div>"
+        "<span style='font-family:Space Mono,monospace;font-size:0.55em;"
+        "color:rgba(255,255,255,0.2);letter-spacing:0.05em;'>참고용</span>"
+        "</div>"
         "</div>"
         "<div style='font-family:Space Mono,monospace;font-size:0.62em;"
         "color:rgba(255,255,255,0.2);'>" + fetched_time + "</div>"
