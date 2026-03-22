@@ -203,23 +203,24 @@ st.markdown("""
     .main-title {
         font-family: 'Space Mono', monospace;
         color: #4a90d9;
-        font-size: 1.6em;
+        font-size: 2.4em;
         font-weight: 700;
         text-align: center;
-        letter-spacing: 0.18em;
+        letter-spacing: 0.22em;
         text-transform: uppercase;
         margin-bottom: 28px;
-        padding: 18px 0 16px;
+        padding: 22px 0 18px;
         border-bottom: 1px solid rgba(74,144,217,0.25);
         position: relative;
+        text-shadow: 0 0 30px rgba(74,144,217,0.4);
     }
     .main-title::after {
         content: '';
         display: block;
-        width: 60px;
+        width: 80px;
         height: 2px;
-        background: linear-gradient(90deg, #4a90d9, transparent);
-        margin: 10px auto 0;
+        background: linear-gradient(90deg, transparent, #4a90d9, transparent);
+        margin: 12px auto 0;
     }
 
     /* ── 섹션 헤더 ── */
@@ -396,13 +397,14 @@ if st.session_state.page == 'settle':
     merchants = st.session_state.db['merchants']
     sorted_keys = sorted(list(merchants.keys()))
     default_idx = sorted_keys.index('spfxm') if 'spfxm' in sorted_keys else 0
-    selected_m = st.selectbox("업체 선택", sorted_keys, index=default_idx)
+    selected_m = st.selectbox("", sorted_keys, index=default_idx, label_visibility="collapsed")
     m_info = merchants[selected_m]
+
+    m_map = {"4%": 1.04, "4.5%": 1.045, "5%": 1.05}
+    sel_p = st.radio("", ["4%", "4.5%", "5%"], index=0, horizontal=True, label_visibility="collapsed")
 
     # ── 01 ─────────────────────────────────────────────────
     section_header("01", "정산 환율", "#4a90d9", "74,144,217")
-    sel_p = st.radio("적용 배수", ["4%", "4.5%", "5%"], index=0, horizontal=True)
-    m_map = {"4%": 1.04, "4.5%": 1.045, "5%": 1.05}
 
     import datetime
 
