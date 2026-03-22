@@ -506,7 +506,8 @@ if st.session_state.page == 'settle':
         "<div style='font-family:Space Mono,monospace;font-size:1.8em;"
         "font-weight:700;color:#ffffff;letter-spacing:0.03em;'>" + bithumb_str + "</div>"
         "<div style='font-family:Space Mono,monospace;font-size:0.68em;"
-        "color:#5dade2;letter-spacing:0.1em;'>" + fetched_time + "</div>"
+        "color:#5dade2;letter-spacing:0.1em;cursor:pointer;'"
+        " title='클릭하면 새로고침' onclick='window.location.reload()'>⟳ " + fetched_time + "</div>"
         "</div>"
 
         "<a href='https://search.naver.com/search.naver?query=%EB%B9%97%EC%8D%B8+%ED%85%8C%EB%8D%94+%EC%8B%9C%EC%84%B8' "
@@ -519,10 +520,6 @@ if st.session_state.page == 'settle':
         "</div>"
     )
     st.markdown(html, unsafe_allow_html=True)
-
-    if st.button("⟳", key="refresh_ticker", help="시세 새로고침"):
-        st.session_state.bithumb_ts = 0
-        st.rerun()
 
     sc1, sc2 = st.columns(2)
     with sc1:
