@@ -365,12 +365,11 @@ with st.sidebar:
         💹 SETTLEMENT
     </div>
     """, unsafe_allow_html=True)
-    if st.button("🚀  정산 작업"): st.session_state.page = 'settle'; st.rerun()
-    if st.button("⚙️  머천트 관리"): st.session_state.page = 'admin'; st.rerun()
+    if st.button("🚀  정산 작업", use_container_width=True): st.session_state.page = 'settle'; st.rerun()
+    if st.button("⚙️  머천트 관리", use_container_width=True): st.session_state.page = 'admin'; st.rerun()
 
     st.divider()
 
-    # ── 입력값 초기화 버튼 ─────────────────────────────────
     reset_keys = ["s_b", "s_s", "s_amt", "bal_in", "w_in", "t_b", "t_u", "t_s"]
     if st.button("⟳  NEW SESSION", key="reset_inputs", use_container_width=True):
         for k in reset_keys:
@@ -381,7 +380,7 @@ with st.sidebar:
         st.rerun()
 
     st.divider()
-    if st.button("🔄  데이터 복구"):
+    if st.button("🔄  데이터 복구", use_container_width=True):
         st.session_state.db = get_default_data()
         save_data(st.session_state.db); st.success("복구 완료"); st.rerun()
 
