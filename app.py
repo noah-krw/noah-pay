@@ -409,54 +409,131 @@ if st.session_state.page == 'settle':
     sel_p = st.radio("적용 배수", ["4%", "4.5%", "5%"], index=0, horizontal=True)
     m_map = {"4%": 1.04, "4.5%": 1.045, "5%": 1.05}
 
-    # ── 빗썸 실시간 시세 ───────────────────────────────────
-    def fetch_bithumb_price():
+    # ── 실시간 시세 데이터 fetch 함수들 ──────────────────────
+    import datetime
+
+    def fetch_bithumb_usdt():
         try:
             res = requests.get("https://api.bithumb.com/public/ticker/USDT_KRW", timeout=3)
             data = res.json()
             if data.get("status") == "0000":
                 return int(float(data["data"]["closing_price"]))
-        except:
-            pass
+        except: pass
         return 0
 
+    def fetch_kimchi_premium():
+        # 업비트 BTC/KRW ÷ (바이낸스 BTC/USDT × USD/KRW 환율) - 1
+        try:
+            upbit = requests.get("https://api.upbit.com/v1/ticker?markets=KRW-BTC", timeout=3).json()
+            binance = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=3).json()
+            fx = requests.get("https://open.er-api.com/v6/latest/USD", timeout=3).json()
+            krw_btc = float(upbit[0]["trade_price"])
+            usd_btc = float(binance["price"])
+            usd_krw = float(fx["rates"]["KRW"])
+            kimchi = ((krw_btc / (usd_btc * usd_krw)) - 1) * 100
+            return round(kimchi, 2), int(usd_krw)
+        except: pass
+        return None, 0
+
+    # 30초마다 갱신
     now_ts = time.time()
     if "bithumb_price" not in st.session_state or now_ts - st.session_state.get("bithumb_ts", 0) > 30:
-        st.session_state.bithumb_price = fetch_bithumb_price()
+        st.session_state.bithumb_price = fetch_bithumb_usdt()
+        kimchi, usd_krw = fetch_kimchi_premium()
+        st.session_state.kimchi = kimchi
+        st.session_state.usd_krw = usd_krw
         st.session_state.bithumb_ts = now_ts
 
     live_price = st.session_state.get("bithumb_price", 0)
+    kimchi     = st.session_state.get("kimchi", None)
+    usd_krw    = st.session_state.get("usd_krw", 0)
+    fetched_time = datetime.datetime.fromtimestamp(st.session_state.get("bithumb_ts", now_ts)).strftime("%H:%M:%S")
 
-    import datetime
-    if live_price > 0:
-        fetched_time = datetime.datetime.fromtimestamp(st.session_state.bithumb_ts).strftime("%H:%M:%S")
-        ticker_html = (
-            "<div style='"
-            "display:flex;align-items:center;justify-content:space-between;"
-            "padding:14px 22px;margin-bottom:14px;"
-            "background:linear-gradient(135deg,#030f1c 0%,#041810 100%);"
-            "border:1px solid rgba(93,173,226,0.35);border-radius:10px;"
-            "box-shadow:0 0 24px rgba(93,173,226,0.12);"
-            "'>"
-            "<div style='display:flex;align-items:center;gap:14px;'>"
-            "<span style='font-family:Space Mono,monospace;font-size:0.7em;color:#5dade2;letter-spacing:0.12em;opacity:0.7;'>BITHUMB</span>"
-            "<span style='font-family:Space Mono,monospace;font-size:0.7em;color:#5dade2;letter-spacing:0.12em;opacity:0.7;'>USDT / KRW</span>"
-            "<div style='width:7px;height:7px;border-radius:50%;background:#2ecc71;box-shadow:0 0 8px #2ecc71;animation:blink 1.5s infinite;'></div>"
-            "</div>"
-            f"<div style='font-family:Space Mono,monospace;font-size:1.8em;font-weight:700;color:#ffffff;letter-spacing:0.04em;'>"
-            f"&#8361; {fmt(live_price)}"
-            "</div>"
-            f"<div style='font-family:Space Mono,monospace;font-size:0.68em;color:rgba(255,255,255,0.25);'>{fetched_time} 기준</div>"
-            "</div>"
-            "<style>@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.15;}}</style>"
-        )
-        st.markdown(ticker_html, unsafe_allow_html=True)
+    # ── 전광판 ────────────────────────────────────────────
+    if kimchi is not None:
+        k_color  = "#2ecc71" if kimchi >= 0 else "#e74c3c"
+        k_glow   = "rgba(46,204,113,0.3)" if kimchi >= 0 else "rgba(231,76,60,0.3)"
+        k_sign   = "+" if kimchi >= 0 else ""
+        k_label  = "PREMIUM" if kimchi >= 0 else "DISCOUNT"
     else:
-        st.markdown(
-            "<p style='color:#e74c3c;font-family:monospace;font-size:0.85em;'>"
-            "⚠ 빗썸 시세를 가져올 수 없습니다. 수동 입력해주세요.</p>",
-            unsafe_allow_html=True
-        )
+        k_color, k_glow, k_sign, k_label = "#888", "transparent", "", "N/A"
+
+    bithumb_str = f"&#8361; {fmt(live_price)}" if live_price > 0 else "— —"
+    google_str  = f"&#8361; {fmt(usd_krw)}" if usd_krw > 0 else "— —"
+    kimchi_str  = f"{k_sign}{kimchi}%" if kimchi is not None else "— —"
+
+    ticker_html = f"""
+    <style>@keyframes blink{{0%,100%{{opacity:1;}}50%{{opacity:0.15;}}}}</style>
+    <div style="margin-bottom:16px;display:flex;flex-direction:column;gap:8px;">
+
+      <!-- 빗썸 + 구글 환율 -->
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;display:flex;align-items:center;justify-content:space-between;
+          padding:12px 18px;
+          background:linear-gradient(135deg,#030f1c,#041810);
+          border:1px solid rgba(93,173,226,0.3);border-radius:10px;
+          box-shadow:0 0 18px rgba(93,173,226,0.1);">
+          <div>
+            <div style="font-family:Space Mono,monospace;font-size:0.65em;color:#5dade2;letter-spacing:0.12em;margin-bottom:4px;">
+              BITHUMB &nbsp;USDT/KRW
+              <span style="display:inline-block;width:6px;height:6px;border-radius:50%;
+                background:#2ecc71;box-shadow:0 0 6px #2ecc71;
+                animation:blink 1.5s infinite;margin-left:6px;vertical-align:middle;"></span>
+            </div>
+            <div style="font-family:Space Mono,monospace;font-size:1.55em;font-weight:700;color:#fff;letter-spacing:0.03em;">
+              {bithumb_str}
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:1;display:flex;align-items:center;justify-content:space-between;
+          padding:12px 18px;
+          background:linear-gradient(135deg,#0d0d03,#181206);
+          border:1px solid rgba(243,156,18,0.3);border-radius:10px;
+          box-shadow:0 0 18px rgba(243,156,18,0.08);">
+          <div>
+            <div style="font-family:Space Mono,monospace;font-size:0.65em;color:#f39c12;letter-spacing:0.12em;margin-bottom:4px;">
+              GOOGLE &nbsp;USD/KRW
+              <span style="display:inline-block;width:6px;height:6px;border-radius:50%;
+                background:#f39c12;box-shadow:0 0 6px #f39c12;
+                animation:blink 1.5s infinite;margin-left:6px;vertical-align:middle;"></span>
+            </div>
+            <div style="font-family:Space Mono,monospace;font-size:1.55em;font-weight:700;color:#fff;letter-spacing:0.03em;">
+              {google_str}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 김프 -->
+      <div style="display:flex;align-items:center;justify-content:space-between;
+        padding:12px 22px;
+        background:linear-gradient(135deg,#060606,#0a0a0a);
+        border:1px solid {k_color}55;border-radius:10px;
+        box-shadow:0 0 20px {k_glow};">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-family:Space Mono,monospace;font-size:0.65em;color:{k_color};letter-spacing:0.15em;">
+            KIMCHI PREMIUM
+          </span>
+          <span style="font-family:Space Mono,monospace;font-size:0.65em;
+            padding:2px 8px;border-radius:4px;
+            background:{k_color}22;color:{k_color};letter-spacing:0.1em;">
+            {k_label}
+          </span>
+        </div>
+        <div style="font-family:Space Mono,monospace;font-size:1.9em;font-weight:700;
+          color:{k_color};letter-spacing:0.04em;
+          text-shadow:0 0 16px {k_glow};">
+          {kimchi_str}
+        </div>
+        <div style="font-family:Space Mono,monospace;font-size:0.65em;color:rgba(255,255,255,0.2);">
+          {fetched_time} 기준
+        </div>
+      </div>
+
+    </div>
+    """
+    st.markdown(ticker_html, unsafe_allow_html=True)
 
     sc1, sc2 = st.columns(2)
     with sc1:
@@ -465,8 +542,8 @@ if st.session_state.page == 'settle':
     with sc2: ss_val = extract_int(st.text_input("수동 환율", key="s_s"))
     s_rate = ss_val if ss_val > 0 else math.ceil(sb_val * m_map[sel_p])
 
-    # 30초 후 자동 리런 트리거
-    if live_price > 0 and (time.time() - st.session_state.get("bithumb_ts", 0)) > 30:
+    # 30초 후 자동 리런
+    if now_ts - st.session_state.get("bithumb_ts", 0) > 30:
         st.rerun()
 
     if s_rate > 0:
