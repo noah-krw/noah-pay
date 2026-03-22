@@ -4,7 +4,7 @@ import streamlit.components.v1 as components
 import math, json, os, re
 
 # ============================================================
-# 정산 매크로 v96.0 - [클로드 2+2 레이아웃 이식 및 명칭/알림 완결]
+# 정산 매크로 v96.1 - [복사 버튼 기능 수정판]
 # ============================================================
 
 DB_FILE = "merchants_v96.json"
@@ -47,15 +47,53 @@ def editable_box(text, color_type="blue", box_id="default"):
     }
     c = colors.get(color_type, colors["blue"])
     line_count = text.count("\n") + 1
-    height = max(110, line_count * 25 + 55)
+    height = max(150, line_count * 25 + 80)
     
-    st.markdown(f"""<style>textarea[aria-label="{box_id}"] {{ background-color: {c['bg']} !important; color: {c['text']} !important; border-left: 5px solid {c['border']} !important; font-family: 'Courier New', monospace !important; font-size: 15px !important; line-height: 1.5 !important; }}</style>""", unsafe_allow_html=True)
-    content = st.text_area(label=box_id, value=text, height=height, label_visibility="collapsed")
-    if st.button("📋 복사", key=f"btn_{box_id}"):
-        components.html(f"<script>navigator.clipboard.writeText(`{content}`);</script>", height=0)
-        st.toast("복사 완료")
+    # HTML/JS 기반 통합 박스 (복사 기능 안정화)
+    html_code = f"""
+    <div style="margin-bottom: 10px;">
+        <textarea id="copy_area_{box_id}" style="
+            width: 100%; 
+            height: {height-60}px; 
+            background-color: {c['bg']}; 
+            color: {c['text']}; 
+            border: none; 
+            border-left: 5px solid {c['border']}; 
+            font-family: 'Courier New', monospace; 
+            font-size: 15px; 
+            line-height: 1.5; 
+            padding: 10px; 
+            box-sizing: border-box; 
+            resize: vertical;
+        ">{text}</textarea>
+        <button onclick="copyText_{box_id}()" style="
+            margin-top: 8px;
+            padding: 8px 16px;
+            background-color: #1e2d45;
+            color: white;
+            border: 1px solid {c['border']};
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: sans-serif;
+            font-size: 14px;
+        ">📋 복사하기</button>
+    </div>
+    <script>
+    function copyText_{box_id}() {{
+        const textArea = document.getElementById('copy_area_{box_id}');
+        textArea.select();
+        try {{
+            document.execCommand('copy');
+            alert('복사되었습니다!');
+        }} catch (err) {{
+            console.error('복사 실패:', err);
+        }}
+    }}
+    </script>
+    """
+    components.html(html_code, height=height)
 
-st.set_page_config(page_title="정산 매크로 v96.0", layout="centered")
+st.set_page_config(page_title="정산 매크로 v96.1", layout="centered")
 
 st.markdown("""
 <style>
@@ -97,7 +135,6 @@ if st.session_state.page == 'settle':
     s_rate = ss_val if ss_val > 0 else math.ceil(sb_val * m_map[sel_p])
     
     if s_rate > 0:
-        # 실장님 요청: 01번은 복사 가능하도록 박스형 부활
         editable_box(f"1usdt = {fmt(s_rate)} krw", "sky", "rate_01")
     
     # 02. 정산 멘트 생성
@@ -124,25 +161,22 @@ if st.session_state.page == 'settle':
         markup_msg = f"드래곤 테더정산 마크업 {m_fee}% {selected_m} / {fmt(amt)} / {fmt(markup)}"
         editable_box(markup_msg, "yellow", "res_04")
 
-    # 05. 정산(세틀먼트) 요청 (하이 밸런스 경고)
+    # 05. 정산(세틀먼트) 요청
     st.markdown('<div class="label-header" style="color:#e74c3c;">05. 정산(세틀먼트) 요청</div>', unsafe_allow_html=True)
     w_bal = extract_int(st.text_input("하이 밸런스 경고용 잔액", key="w_in"))
     if w_bal > 0:
-        # 실장님 컨펌: 05번은 박스 없이 단순 표시
         st.markdown(f'<p class="rate-text">>>> 적용 환율 1usdt = {fmt(s_rate)} krw</p>', unsafe_allow_html=True)
         w_msg = f"Hello, Team\nCurrently, the balance of the merchants is too high.\nTo ensure a safe balance, please proceed with USDT settlement.\nThank you\n\nBalance update\n\n- {selected_m} : {fmt(w_bal)} krw"
         editable_box(w_msg, "red", "res_05")
 
     st.divider()
-    # 06. TOP-UP 요청 (클로드 2+2 레이아웃 반영)
+    # 06. TOP-UP 요청
     st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
     
-    # Row 1: 2열 배치
     t_row1_col1, t_row1_col2 = st.columns(2)
     with t_row1_col1: tb_val = extract_int(st.text_input("탑업 시세(빗썸)", key="t_b"))
     with t_row1_col2: tu_amt = extract_int(st.text_input("수량(USDT)", key="t_u"))
     
-    # Row 2: 2열 배치
     t_row2_col1, t_row2_col2 = st.columns(2)
     with t_row2_col1: ts_val = extract_int(st.text_input("수동 환율", key="t_s"))
     with t_row2_col2:
@@ -153,7 +187,6 @@ if st.session_state.page == 'settle':
     if tu_amt > 0 and t_rate > 0:
         total_t_krw = tu_amt * t_rate
         my_w = st.session_state.db.get('my_wallet', '')
-        # 스케치 멘트 최종 수정
         t_msg = f"top-up\n\nmid : {selected_m}\ntop-up amount : {fmt(tu_amt)} usdt\nexchange to KRW : {fmt(total_t_krw)} krw\n1usdt = {fmt(t_rate)} krw\n\n{my_w}\n\nPlease check the invoice and transfer the USDT to the address provided."
         editable_box(t_msg, "green", "res_06_req")
         
@@ -191,6 +224,6 @@ elif st.session_state.page == 'admin':
             if st.button("변경사항 저장", key=f"s_{name}"):
                 st.session_state.db['merchants'][name] = {"wallet": u_w, "fee": u_f, "note": u_n}
                 save_data(st.session_state.db)
-                st.toast(f"{name} 변경사항이 저장되었습니다.") # 알림 부활
+                st.toast(f"{name} 변경사항이 저장되었습니다.")
             if st.button("삭제", key=f"d_{name}"): 
                 del st.session_state.db['merchants'][name]; save_data(st.session_state.db); st.rerun()
