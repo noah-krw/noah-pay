@@ -383,17 +383,26 @@ with st.sidebar:
         💹 SETTLEMENT
     </div>
     """, unsafe_allow_html=True)
-    if st.button("🚀  USDT 정산", use_container_width=True): st.session_state.page = 'settle'; st.rerun()
-    if st.button("📤  USDT 탑업", use_container_width=True): st.session_state.page = 'topup'; st.rerun()
+    if st.button("🚀  USDT 정산", use_container_width=True):
+        for k in ["t_b", "t_u", "t_s"]:
+            st.session_state[k] = ""
+        st.session_state.page = 'settle'; st.rerun()
+    if st.button("📤  USDT 탑업", use_container_width=True):
+        for k in ["s_b", "s_s", "s_amt", "bal_in", "w_in"]:
+            st.session_state[k] = ""
+        st.session_state.page = 'topup'; st.rerun()
     if st.button("⚙️  머천트 관리", use_container_width=True): st.session_state.page = 'admin'; st.rerun()
 
     st.divider()
 
-    reset_keys = ["s_b", "s_s", "s_amt", "bal_in", "w_in"]
+    # 현재 페이지에 맞는 reset_keys
+    if st.session_state.page == "topup":
+        reset_keys = ["t_b", "t_u", "t_s"]
+    else:
+        reset_keys = ["s_b", "s_s", "s_amt", "bal_in", "w_in"]
     if st.button("⟳  NEW SESSION", key="reset_inputs", use_container_width=True):
         for k in reset_keys:
             st.session_state[k] = ""
-        st.session_state.page = 'settle'
         st.toast("입력값이 초기화되었습니다", icon="🔄")
         st.rerun()
 
