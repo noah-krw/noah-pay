@@ -359,6 +359,7 @@ def section_header(num, title, color="#4a90d9", rgb="74,144,217"):
 # ── 세션 초기화 ────────────────────────────────────────────
 if 'db' not in st.session_state: st.session_state.db = load_data()
 if 'page' not in st.session_state: st.session_state.page = 'settle'
+if 'sel_p' not in st.session_state: st.session_state.sel_p = '4%'
 
 # ── 빗썸 시세 최초 1회만 fetch ──────────────────────
 if 'bithumb_price' not in st.session_state:
@@ -382,12 +383,13 @@ with st.sidebar:
         💹 SETTLEMENT
     </div>
     """, unsafe_allow_html=True)
-    if st.button("🚀  정산 작업", use_container_width=True): st.session_state.page = 'settle'; st.rerun()
+    if st.button("🚀  USDT 정산", use_container_width=True): st.session_state.page = 'settle'; st.rerun()
+    if st.button("📤  USDT 탑업", use_container_width=True): st.session_state.page = 'topup'; st.rerun()
     if st.button("⚙️  머천트 관리", use_container_width=True): st.session_state.page = 'admin'; st.rerun()
 
     st.divider()
 
-    reset_keys = ["s_b", "s_s", "s_amt", "bal_in", "w_in", "t_b", "t_u", "t_s", "naver_k"]
+    reset_keys = ["s_b", "s_s", "s_amt", "bal_in", "w_in"]
     if st.button("⟳  NEW SESSION", key="reset_inputs", use_container_width=True):
         for k in reset_keys:
             st.session_state[k] = ""
@@ -533,10 +535,23 @@ if st.session_state.page == 'settle':
                  f"- {selected_m} : {fmt(w_bal)} krw")
         editable_box(w_msg, "red", "res_05")
 
-    st.divider()
 
-    # ── 06 ─────────────────────────────────────────────────
-    section_header("06", "TOP-UP 탑업", "#2ecc71", "46,204,113")
+# ══════════════════════════════════════════════════════════
+# 탑업 페이지
+# ══════════════════════════════════════════════════════════
+elif st.session_state.page == 'topup':
+
+    st.markdown('<div class="main-title">USDT 탑업</div>', unsafe_allow_html=True)
+
+    merchants = st.session_state.db['merchants']
+    sorted_keys = sorted(list(merchants.keys()))
+    default_idx = sorted_keys.index('spfxm') if 'spfxm' in sorted_keys else 0
+    selected_m = st.selectbox("", sorted_keys, index=default_idx, label_visibility="collapsed", key="topup_merchant")
+    m_info = merchants[selected_m]
+
+    live_price = st.session_state.get("bithumb_price", 0)
+
+    section_header("01", "TOP-UP 탑업", "#2ecc71", "46,204,113")
 
     t_row1_col1, t_row1_col2 = st.columns(2)
     with t_row1_col1:
