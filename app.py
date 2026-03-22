@@ -4,10 +4,10 @@ import streamlit.components.v1 as components
 import math, json, os, re
 
 # ============================================================
-# 정산 매크로 v93.9 - 실장님 지시사항 (비고/복구/3열/수정) 완벽 검증본
+# 정산 매크로 v94.1 - 실장님 최종 지시사항 완벽 통합본
 # ============================================================
 
-DB_FILE = "merchants_v10.json"
+DB_FILE = "merchants_v12.json"
 
 def get_default_data():
     return {
@@ -40,7 +40,6 @@ def extract_int(text):
 
 def fmt(n): return f"{n:,}"
 
-# [핵심] 결과창에서 직접 수정 가능한 텍스트 박스 (Key 중복 방지)
 def editable_box(text, color_type="blue", box_id="default"):
     colors = {
         "blue": {"border": "#4a90d9", "bg": "#060d18", "text": "#a8c7e8"},
@@ -64,22 +63,20 @@ def editable_box(text, color_type="blue", box_id="default"):
     </style>
     """, unsafe_allow_html=True)
     
-    # 수정 가능한 결과창 (aria-label을 식별자로 사용)
     content = st.text_area(label=box_id, value=text, height=height, label_visibility="collapsed")
     
     if st.button("📋 복사", key=f"btn_{box_id}"):
         js = f"<script>navigator.clipboard.writeText(`{content}`);</script>"
         components.html(js, height=0)
-        st.toast("복사 완료!")
+        st.toast("복사 완료")
 
-st.set_page_config(page_title="정산 매크로 v93.9", layout="centered")
+st.set_page_config(page_title="정산 매크로 v94.1", layout="centered")
 
-# v89.8 디자인 (흰색 배경 입력창 + 금색 굵은 글자)
 st.markdown("""
 <style>
     [data-testid="stAppViewContainer"] { background-color: #0a0e17 !important; color: #c8d6e5 !important; }
     div[data-baseweb="input"] { background-color: #ffffff !important; border-radius: 6px !important; }
-    input { color: #d4ac0d !important; -webkit-text-fill-color: #d4ac0d !important; font-weight: bold !important; font-family: monospace !important; font-size: 1.25em !important; }
+    input { color: #d4ac0d !important; -webkit-text-fill-color: #d4ac0d !important; font-weight: bold !important; font-family: 'Courier New', monospace !important; font-size: 1.25em !important; }
     .label-header { color: #4a90d9; font-weight: bold; font-size: 1.25em; border-bottom: 2px solid #1e2d45; padding-bottom: 8px; margin-top: 35px; margin-bottom: 15px; text-transform: uppercase; }
     .rate-guide { color: #5dade2; font-size: 1.15em; font-weight: bold; margin: 20px 0; font-family: monospace; text-align: center; background: #060d18; padding: 12px; border: 1px dashed #1e3a5f; }
 </style>
@@ -100,12 +97,13 @@ with st.sidebar:
 if st.session_state.page == 'settle':
     merchants = st.session_state.db['merchants']
     sorted_keys = sorted(list(merchants.keys()))
-    selected_m = st.selectbox("업체 선택", sorted_keys)
+    default_idx = sorted_keys.index('spfxm') if 'spfxm' in sorted_keys else 0
+    selected_m = st.selectbox("업체 선택", sorted_keys, index=default_idx)
     m_info = merchants[selected_m]
     
     st.info(f"📍 지갑: {m_info['wallet']} | 📊 요율: {m_info['fee']}% | 📝 비고: {m_info.get('note', '')}")
 
-    # 01. 정산 요청
+    # 01. 정산 환율 및 요청
     st.markdown('<div class="label-header">01. 정산 환율 및 요청</div>', unsafe_allow_html=True)
     sel_p = st.radio("적용 배수", ["4%", "4.5%", "5%"], index=0, horizontal=True)
     m_map = {"4%": 1.04, "4.5%": 1.045, "5%": 1.05}
@@ -143,10 +141,10 @@ if st.session_state.page == 'settle':
         editable_box(w_msg, "red", box_id="res_04")
 
     st.divider()
-    # 06. TOP-UP 요청 (가로 3열 구도)
+    # 06. TOP-UP 요청 (3열 구도)
     st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
     t1, t2, t3 = st.columns(3)
-    with t1: tb_val = extract_int(st.text_input("탑업 시세", key="t_b"))
+    with t1: tb_val = extract_int(st.text_input("탑업 시세(빗썸)", key="t_b"))
     with t2: tu_amt = extract_int(st.text_input("수량(USDT)", key="t_u"))
     with t3: ts_val = extract_int(st.text_input("수동 환율", key="t_s"))
     
@@ -167,8 +165,8 @@ if st.session_state.page == 'settle':
 elif st.session_state.page == 'admin':
     st.title("⚙️ 머천트 및 지갑 설정")
     st.subheader("💳 내 USDT 지갑 (Top-up용)")
-    my_w = st.text_input("지갑 주소", value=st.session_state.db.get('my_wallet', ''))
-    if st.button("저장"):
+    my_w = st.text_input("내 지갑 주소", value=st.session_state.db.get('my_wallet', ''))
+    if st.button("지갑 저장"):
         st.session_state.db['my_wallet'] = my_w
         save_data(st.session_state.db); st.success("저장 완료")
 
