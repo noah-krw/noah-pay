@@ -418,15 +418,14 @@ if st.session_state.page == 'settle':
             if r1.json().get('status') == '0000':
                 bithumb = int(float(r1.json()['data']['closing_price']))
         except: pass
-        # 김프 = (업비트 USDT - 환율) / 환율 * 100 - 0.15 보정 (GPT 추천)
+        # 김프 = 업비트 USDT ÷ 빗썸 USDT - 1 + 보정값
+        # 보정값 -0.16 → 네이버 한국 프리미엄 근사
         try:
             r2 = requests.get('https://api.upbit.com/v1/ticker?markets=KRW-USDT', timeout=3)
             upbit_usdt = float(r2.json()[0]['trade_price'])
-            r3 = requests.get('https://api.frankfurter.app/latest?from=USD&to=KRW', timeout=3)
-            usd_krw = float(r3.json()['rates']['KRW'])
-            if upbit_usdt > 0 and usd_krw > 0:
-                raw = ((upbit_usdt - usd_krw) / usd_krw) * 100
-                kimchi = round(raw - 0.15, 2)
+            if bithumb and bithumb > 0 and upbit_usdt > 0:
+                raw = ((upbit_usdt / bithumb) - 1) * 100
+                kimchi = round(raw - 0.16, 2)
         except: pass
         return bithumb, kimchi
 
