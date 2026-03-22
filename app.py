@@ -411,23 +411,36 @@ if st.session_state.page == 'settle':
 
     import datetime
 
-    # 캐시 없이 session_state 타이머로 직접 관리 (30초)
+    # 네이버 파이낸스 API로 빗썸 시세 + 한국 프리미엄 직접 가져오기
     def fetch_market_data():
         bithumb, kimchi = 0, None
         try:
-            r1 = requests.get("https://api.bithumb.com/public/ticker/USDT_KRW", timeout=3)
-            if r1.json().get("status") == "0000":
-                bithumb = int(float(r1.json()["data"]["closing_price"]))
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://www.naver.com'
+            }
+            r = requests.get(
+                'https://api.stock.naver.com/coin/USDT/basicInfo',
+                headers=headers, timeout=4
+            )
+            data = r.json()
+            # 빗썸 현재가
+            for ex in data.get('exchangeList', []):
+                if ex.get('exchangeName') == '빗썸':
+                    bithumb = int(float(ex.get('closePrice', 0)))
+                    break
+            # 한국 프리미엄
+            premium = data.get('koreanPremium', None)
+            if premium is not None:
+                kimchi = round(float(premium), 2)
         except: pass
-        try:
-            r2 = requests.get("https://api.upbit.com/v1/ticker?markets=KRW-BTC", timeout=3)
-            r3 = requests.get("https://api.upbit.com/v1/ticker?markets=USDT-BTC", timeout=3)
-            upbit_btc_krw  = float(r2.json()[0]["trade_price"])
-            upbit_btc_usdt = float(r3.json()[0]["trade_price"])
-            if bithumb > 0 and upbit_btc_usdt > 0:
-                global_krw = upbit_btc_usdt * bithumb
-                kimchi = round(((upbit_btc_krw / global_krw) - 1) * 100, 2)
-        except: pass
+        # 네이버 실패시 빗썸 직접 호출 fallback
+        if bithumb == 0:
+            try:
+                r2 = requests.get('https://api.bithumb.com/public/ticker/USDT_KRW', timeout=3)
+                if r2.json().get('status') == '0000':
+                    bithumb = int(float(r2.json()['data']['closing_price']))
+            except: pass
         return bithumb, kimchi
 
     now_ts2 = time.time()
