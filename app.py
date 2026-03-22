@@ -4,7 +4,7 @@ import streamlit.components.v1 as components
 import math, json, os, re
 
 # ============================================================
-# 정산 매크로 v95.8 - [디자인 디테일 및 명칭 최종 복구본]
+# 정산 매크로 v95.9 - [01번 복사부활 / 06번 3열박제 / 명칭복구]
 # ============================================================
 
 DB_FILE = "merchants_v95_final.json"
@@ -42,7 +42,8 @@ def editable_box(text, color_type="blue", box_id="default"):
         "blue": {"border": "#4a90d9", "bg": "#060d18", "text": "#a8c7e8"},
         "green": {"border": "#27ae60", "bg": "#06180d", "text": "#7dcea0"},
         "yellow": {"border": "#f39c12", "bg": "#181406", "text": "#f8c471"},
-        "red": {"border": "#e74c3c", "bg": "#180606", "text": "#f1948a"}
+        "red": {"border": "#e74c3c", "bg": "#180606", "text": "#f1948a"},
+        "sky": {"border": "#5dade2", "bg": "#0a1a2f", "text": "#5dade2"}
     }
     c = colors.get(color_type, colors["blue"])
     line_count = text.count("\n") + 1
@@ -54,7 +55,7 @@ def editable_box(text, color_type="blue", box_id="default"):
         components.html(f"<script>navigator.clipboard.writeText(`{content}`);</script>", height=0)
         st.toast("복사 완료")
 
-st.set_page_config(page_title="정산 매크로 v95.8", layout="centered")
+st.set_page_config(page_title="정산 매크로 v95.9", layout="centered")
 
 st.markdown("""
 <style>
@@ -62,7 +63,6 @@ st.markdown("""
     div[data-baseweb="input"] { background-color: #ffffff !important; border-radius: 6px !important; }
     input { color: #d4ac0d !important; font-weight: bold !important; font-family: 'Courier New', monospace !important; font-size: 1.25em !important; }
     .label-header { color: #4a90d9; font-weight: bold; font-size: 1.25em; border-bottom: 2px solid #1e2d45; padding-bottom: 8px; margin-top: 35px; margin-bottom: 15px; text-transform: uppercase; }
-    .rate-text { color: #5dade2; font-weight: bold; font-size: 1.1em; margin-bottom: 10px; font-family: monospace; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -98,9 +98,10 @@ if st.session_state.page == 'settle':
     s_rate = ss_val if ss_val > 0 else math.ceil(sb_val * m_map[sel_p])
     
     if s_rate > 0:
-        st.markdown(f'<p class="rate-text">>>> 적용 환율 1usdt = {fmt(s_rate)} krw</p>', unsafe_allow_html=True)
+        # 실장님 요청: 01번 환율 정보 복사버튼 부활
+        editable_box(f"1usdt = {fmt(s_rate)} krw", "sky", "rate_01")
     
-    # 02. 정산 멘트 생성
+    # 02. 정산 멘트 생성 (금액 입력)
     st.markdown('<div class="label-header">02. 정산 멘트 생성</div>', unsafe_allow_html=True)
     amt = extract_int(st.text_input("정산 금액 (KRW) 입력", key="s_amt"))
     if amt > 0 and s_rate > 0:
@@ -132,7 +133,7 @@ if st.session_state.page == 'settle':
         editable_box(w_msg, "red", "res_05")
 
     st.divider()
-    # 06. TOP-UP 요청 (3열 가로 구도)
+    # 06. TOP-UP 요청 (가로 3열 디자인 박제)
     st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
     t1, t2, t3 = st.columns(3)
     with t1: tb_val = extract_int(st.text_input("탑업 시세(빗썸)", key="t_b"))
@@ -142,7 +143,8 @@ if st.session_state.page == 'settle':
     t_rate = ts_val if ts_val > 0 else (tb_val - math.ceil(tb_val * 0.005) if tb_val > 0 else 0)
     
     if t_rate > 0:
-        st.markdown(f'<p class="rate-text">>>> 적용 환율 1usdt = {fmt(t_rate)} krw</p>', unsafe_allow_html=True)
+        # 탑업 환율 정보 복사버튼 포함
+        editable_box(f"1usdt = {fmt(t_rate)} krw", "sky", "rate_06")
         if tu_amt > 0:
             total_t_krw = tu_amt * t_rate
             my_w = st.session_state.db.get('my_wallet', '')
@@ -179,7 +181,7 @@ elif st.session_state.page == 'admin':
             info = st.session_state.db['merchants'][name]
             u_w = st.text_input("지갑주소", value=info['wallet'], key=f"w_{name}")
             u_f = st.text_input("마크업 수수료 (%)", value=info['fee'], key=f"f_{name}")
-            u_n = st.text_input("비고", value=info.get('note',''), key=f"n_{name}")
+            u_n = st.text_input("비고", value=info.get('note', ''), key=f"n_{name}")
             if st.button("변경사항 저장", key=f"s_{name}"):
                 st.session_state.db['merchants'][name] = {"wallet": u_w, "fee": u_f, "note": u_n}
                 save_data(st.session_state.db); st.toast(f"{name} 변경사항 저장됨")
