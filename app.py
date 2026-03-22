@@ -4,7 +4,7 @@ import streamlit.components.v1 as components
 import math, json, os, re
 
 # ============================================================
-# 정산 매크로 v96.1 - [복사 버튼 기능 수정판]
+# 정산 매크로 v96.2 - [알림창 제거 및 버튼 상태 피드백형]
 # ============================================================
 
 DB_FILE = "merchants_v96.json"
@@ -40,7 +40,7 @@ def editable_box(text, color_type="blue", box_id="default"):
     if not text: return 
     colors = {
         "blue": {"border": "#4a90d9", "bg": "#060d18", "text": "#a8c7e8"},
-        "green": {"border": "#27ae60", "bg": "#06180d", "text": "#7dcea0"},
+        "green": {"border": "#27ae60", "bg": "#01160a", "text": "#7dcea0"},
         "yellow": {"border": "#f39c12", "bg": "#181406", "text": "#f8c471"},
         "red": {"border": "#e74c3c", "bg": "#180606", "text": "#f1948a"},
         "sky": {"border": "#5dade2", "bg": "#0a1a2f", "text": "#5dade2"}
@@ -49,7 +49,6 @@ def editable_box(text, color_type="blue", box_id="default"):
     line_count = text.count("\n") + 1
     height = max(150, line_count * 25 + 80)
     
-    # HTML/JS 기반 통합 박스 (복사 기능 안정화)
     html_code = f"""
     <div style="margin-bottom: 10px;">
         <textarea id="copy_area_{box_id}" style="
@@ -66,7 +65,7 @@ def editable_box(text, color_type="blue", box_id="default"):
             box-sizing: border-box; 
             resize: vertical;
         ">{text}</textarea>
-        <button onclick="copyText_{box_id}()" style="
+        <button id="btn_{box_id}" onclick="copyText_{box_id}()" style="
             margin-top: 8px;
             padding: 8px 16px;
             background-color: #1e2d45;
@@ -76,15 +75,23 @@ def editable_box(text, color_type="blue", box_id="default"):
             cursor: pointer;
             font-family: sans-serif;
             font-size: 14px;
+            transition: all 0.3s;
         ">📋 복사하기</button>
     </div>
     <script>
     function copyText_{box_id}() {{
         const textArea = document.getElementById('copy_area_{box_id}');
+        const btn = document.getElementById('btn_{box_id}');
         textArea.select();
         try {{
             document.execCommand('copy');
-            alert('복사되었습니다!');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '✅ 복사완료';
+            btn.style.backgroundColor = '{c['border']}';
+            setTimeout(() => {{
+                btn.innerHTML = originalText;
+                btn.style.backgroundColor = '#1e2d45';
+            }}, 1500);
         }} catch (err) {{
             console.error('복사 실패:', err);
         }}
@@ -93,7 +100,7 @@ def editable_box(text, color_type="blue", box_id="default"):
     """
     components.html(html_code, height=height)
 
-st.set_page_config(page_title="정산 매크로 v96.1", layout="centered")
+st.set_page_config(page_title="정산 매크로 v96.2", layout="centered")
 
 st.markdown("""
 <style>
@@ -124,7 +131,6 @@ if st.session_state.page == 'settle':
     selected_m = st.selectbox("업체 선택", sorted_keys, index=default_idx)
     m_info = merchants[selected_m]
 
-    # 01. 정산 환율
     st.markdown('<div class="label-header">01. 정산 환율</div>', unsafe_allow_html=True)
     sel_p = st.radio("적용 배수", ["4%", "4.5%", "5%"], index=0, horizontal=True)
     m_map = {"4%": 1.04, "4.5%": 1.045, "5%": 1.05}
@@ -137,7 +143,6 @@ if st.session_state.page == 'settle':
     if s_rate > 0:
         editable_box(f"1usdt = {fmt(s_rate)} krw", "sky", "rate_01")
     
-    # 02. 정산 멘트 생성
     st.markdown('<div class="label-header">02. 정산 멘트 생성</div>', unsafe_allow_html=True)
     amt = extract_int(st.text_input("정산 금액 (KRW) 입력", key="s_amt"))
     if amt > 0 and s_rate > 0:
@@ -145,7 +150,6 @@ if st.session_state.page == 'settle':
         s_msg = f"- {selected_m} settlement amount : {fmt(amt)} krw\n- exchange to usdt : {u_val:,.2f} usdt\n- 1usdt = {fmt(s_rate)} krw\n\n{m_info['wallet']}\n\nPlease confirm the address and calculation.\nOnce approved, we will proceed immediately"
         editable_box(s_msg, "blue", "res_02")
 
-    # 03. 최종 잔액 보고
     st.markdown('<div class="label-header">03. 최종 잔액 보고</div>', unsafe_allow_html=True)
     bal_in = extract_int(st.text_input("현재 잔액 입력 (KRW)", key="bal_in"))
     if bal_in > 0 and amt > 0:
@@ -153,7 +157,6 @@ if st.session_state.page == 'settle':
         b_msg = f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {fmt(amt)} krw\nexchange to usdt : {fmt(u_ceil)} usdt\n1usdt = {fmt(s_rate)} krw\n\n- {selected_m} : {fmt(bal_in)} krw"
         editable_box(b_msg, "green", "res_03")
 
-    # 04. 마크업 수수료
     st.markdown('<div class="label-header">04. 마크업 수수료</div>', unsafe_allow_html=True)
     if amt > 0:
         m_fee = float(m_info.get('fee', 0.5))
@@ -161,7 +164,6 @@ if st.session_state.page == 'settle':
         markup_msg = f"드래곤 테더정산 마크업 {m_fee}% {selected_m} / {fmt(amt)} / {fmt(markup)}"
         editable_box(markup_msg, "yellow", "res_04")
 
-    # 05. 정산(세틀먼트) 요청
     st.markdown('<div class="label-header" style="color:#e74c3c;">05. 정산(세틀먼트) 요청</div>', unsafe_allow_html=True)
     w_bal = extract_int(st.text_input("하이 밸런스 경고용 잔액", key="w_in"))
     if w_bal > 0:
@@ -170,7 +172,6 @@ if st.session_state.page == 'settle':
         editable_box(w_msg, "red", "res_05")
 
     st.divider()
-    # 06. TOP-UP 요청
     st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
     
     t_row1_col1, t_row1_col2 = st.columns(2)
