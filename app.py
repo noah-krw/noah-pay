@@ -502,31 +502,105 @@ if st.session_state.page == 'settle':
 elif st.session_state.page == 'admin':
     st.markdown('<div class="main-title">머천트 및 지갑 관리</div>', unsafe_allow_html=True)
 
-    my_w = st.text_input("내 USDT 지갑 주소", value=st.session_state.db.get('my_wallet', ''))
-    if st.button("내 지갑 저장"):
+    st.markdown("""
+    <div style="
+        margin-top: 8px;
+        margin-bottom: 14px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        background: rgba(255,255,255,0.02);
+        border-radius: 8px;
+        border-left: 3px solid #4a90d9;
+        overflow: hidden;
+        position: relative;
+    ">
+        <div style="position:absolute;top:0;left:0;right:0;bottom:0;
+            background:linear-gradient(90deg,rgba(74,144,217,0.07) 0%,transparent 100%);
+            pointer-events:none;"></div>
+        <span style="font-family:'Space Mono',monospace;font-size:0.75em;font-weight:700;
+            color:#4a90d9;letter-spacing:0.1em;opacity:0.7;">MY</span>
+        <span style="font-family:'Noto Sans KR',sans-serif;font-size:0.92em;font-weight:700;
+            color:#d0dff0;letter-spacing:0.08em;text-transform:uppercase;">내 지갑 주소</span>
+        <span style="flex:1;height:1px;background:linear-gradient(90deg,rgba(74,144,217,0.3) 0%,transparent 100%);"></span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    my_w = st.text_input("내 USDT 지갑 주소", value=st.session_state.db.get('my_wallet', ''), label_visibility="collapsed")
+    if st.button("저장", use_container_width=True):
         st.session_state.db['my_wallet'] = my_w
         save_data(st.session_state.db); st.toast("지갑 정보가 저장되었습니다.")
 
-    st.divider()
+    st.markdown("""
+    <div style="
+        margin-top: 32px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        background: rgba(255,255,255,0.02);
+        border-radius: 8px;
+        border-left: 3px solid #a855f7;
+        position: relative;
+        overflow: hidden;
+    ">
+        <div style="position:absolute;top:0;left:0;right:0;bottom:0;
+            background:linear-gradient(90deg,rgba(168,85,247,0.07) 0%,transparent 100%);
+            pointer-events:none;"></div>
+        <span style="font-family:'Space Mono',monospace;font-size:0.75em;font-weight:700;
+            color:#a855f7;letter-spacing:0.1em;opacity:0.7;">NEW</span>
+        <span style="font-family:'Noto Sans KR',sans-serif;font-size:0.92em;font-weight:700;
+            color:#d0dff0;letter-spacing:0.08em;text-transform:uppercase;">업체 추가</span>
+        <span style="flex:1;height:1px;background:linear-gradient(90deg,rgba(168,85,247,0.3) 0%,transparent 100%);"></span>
+    </div>
+    """, unsafe_allow_html=True)
+
     with st.form("new_merchant"):
-        st.subheader("➕ 업체 추가")
         n_name   = st.text_input("업체명")
         n_wallet = st.text_input("지갑주소")
         n_fee    = st.text_input("마크업 수수료 (%)", value="0.5")
         n_note   = st.text_input("비고")
-        if st.form_submit_button("등록"):
+        if st.form_submit_button("등록", use_container_width=True):
             st.session_state.db['merchants'][n_name] = {"wallet": n_wallet, "fee": n_fee, "note": n_note}
             save_data(st.session_state.db); st.toast(f"{n_name} 업체 등록됨"); st.rerun()
 
-    st.divider()
+    st.markdown("""
+    <div style="
+        margin-top: 32px;
+        margin-bottom: 14px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        background: rgba(255,255,255,0.02);
+        border-radius: 8px;
+        border-left: 3px solid #2ecc71;
+        position: relative;
+        overflow: hidden;
+    ">
+        <div style="position:absolute;top:0;left:0;right:0;bottom:0;
+            background:linear-gradient(90deg,rgba(46,204,113,0.07) 0%,transparent 100%);
+            pointer-events:none;"></div>
+        <span style="font-family:'Space Mono',monospace;font-size:0.75em;font-weight:700;
+            color:#2ecc71;letter-spacing:0.1em;opacity:0.7;">LIST</span>
+        <span style="font-family:'Noto Sans KR',sans-serif;font-size:0.92em;font-weight:700;
+            color:#d0dff0;letter-spacing:0.08em;text-transform:uppercase;">등록 업체 관리</span>
+        <span style="flex:1;height:1px;background:linear-gradient(90deg,rgba(46,204,113,0.3) 0%,transparent 100%);"></span>
+    </div>
+    """, unsafe_allow_html=True)
+
     for name in sorted(st.session_state.db['merchants'].keys()):
         with st.expander(f"📦 {name} 관리"):
             info = st.session_state.db['merchants'][name]
             u_w = st.text_input("지갑주소",          value=info['wallet'],          key=f"w_{name}")
             u_f = st.text_input("마크업 수수료 (%)", value=info['fee'],             key=f"f_{name}")
             u_n = st.text_input("비고",              value=info.get('note', ''),   key=f"n_{name}")
-            if st.button("변경사항 저장", key=f"s_{name}"):
-                st.session_state.db['merchants'][name] = {"wallet": u_w, "fee": u_f, "note": u_n}
-                save_data(st.session_state.db); st.toast(f"{name} 변경사항이 저장되었습니다.")
-            if st.button("삭제", key=f"d_{name}"):
-                del st.session_state.db['merchants'][name]; save_data(st.session_state.db); st.rerun()
+            col_save, col_del = st.columns([3, 1])
+            with col_save:
+                if st.button("변경사항 저장", key=f"s_{name}", use_container_width=True):
+                    st.session_state.db['merchants'][name] = {"wallet": u_w, "fee": u_f, "note": u_n}
+                    save_data(st.session_state.db); st.toast(f"{name} 변경사항이 저장되었습니다.")
+            with col_del:
+                if st.button("삭제", key=f"d_{name}", use_container_width=True):
+                    del st.session_state.db['merchants'][name]; save_data(st.session_state.db); st.rerun()
