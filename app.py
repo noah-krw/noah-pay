@@ -360,18 +360,16 @@ def section_header(num, title, color="#4a90d9", rgb="74,144,217"):
 if 'db' not in st.session_state: st.session_state.db = load_data()
 if 'page' not in st.session_state: st.session_state.page = 'settle'
 
-# ── 빗썸 시세: cache_data로 캐싱 (페이지 전환해도 재호출 없음) ──
-@st.cache_data(show_spinner=False)
-def get_bithumb_price():
+# ── 빗썸 시세 최초 1회만 fetch ──────────────────────
+if 'bithumb_price' not in st.session_state:
     try:
         _r = requests.get('https://api.bithumb.com/public/ticker/USDT_KRW', timeout=3)
         if _r.json().get('status') == '0000':
-            return int(float(_r.json()['data']['closing_price']))
-    except: pass
-    return 0
-
-if 'bithumb_price' not in st.session_state:
-    st.session_state.bithumb_price = get_bithumb_price()
+            st.session_state.bithumb_price = int(float(_r.json()['data']['closing_price']))
+        else:
+            st.session_state.bithumb_price = 0
+    except:
+        st.session_state.bithumb_price = 0
     st.session_state.bithumb_ts = time.time()
     st.session_state.kimchi = None
 
@@ -469,7 +467,6 @@ if st.session_state.page == 'settle':
     st.markdown(html, unsafe_allow_html=True)
 
     if st.button('⟳  시세 새로고침', key='refresh_ticker'):
-        get_bithumb_price.clear()
         if 'bithumb_price' in st.session_state:
             del st.session_state['bithumb_price']
         st.rerun()
