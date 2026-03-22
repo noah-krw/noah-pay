@@ -391,11 +391,6 @@ with st.sidebar:
 # ══════════════════════════════════════════════════════════
 if st.session_state.page == 'settle':
 
-    # 30초 자동갱신 트리거
-    if "bithumb_ts" in st.session_state and (time.time() - st.session_state.get("bithumb_ts", 0)) > 30:
-        st.session_state.bithumb_price = 0  # 강제 재요청
-        st.rerun()
-
     st.markdown('<div class="main-title">단계별 정산 시스템</div>', unsafe_allow_html=True)
 
     merchants = st.session_state.db['merchants']
@@ -412,60 +407,17 @@ if st.session_state.page == 'settle':
     import datetime
 
     def fetch_market_data():
-        bithumb, kimchi = None, None
+        bithumb = None
         try:
             r1 = requests.get('https://api.bithumb.com/public/ticker/USDT_KRW', timeout=3)
             if r1.json().get('status') == '0000':
                 bithumb = int(float(r1.json()['data']['closing_price']))
         except: pass
+        return bithumb, None
 
-        # 김프 = (업비트 BTC/KRW - OKX BTC/USDT × 환율) / (OKX BTC/USDT × 환율) × 100
-        try:
-            # 업비트 BTC/KRW
-            r2 = requests.get('https://api.upbit.com/v1/ticker?markets=KRW-BTC', timeout=3)
-            upbit_btc = float(r2.json()[0]['trade_price'])
-
-            # OKX BTC/USDT (바이낸스 대체)
-            r3 = requests.get('https://www.okx.com/api/v5/market/ticker?instId=BTC-USDT', timeout=3)
-            okx_btc = float(r3.json()['data'][0]['last'])
-
-            # 환율: 수출입은행 → frankfurter → 빗썸 순
-            usd_krw = 0
-            try:
-                exim_key = st.secrets.get('EXIM_API_KEY', '')
-                if exim_key:
-                    for days_ago in range(0, 4):
-                        date = (datetime.datetime.now() - datetime.timedelta(days=days_ago)).strftime('%Y%m%d')
-                        r4 = requests.get(
-                            f'https://www.koreaexim.go.kr/site/program/financial/exchangeJSON'
-                            f'?authkey={exim_key}&searchdate={date}&data=AP01',
-                            timeout=3
-                        )
-                        data4 = r4.json()
-                        if data4:
-                            for item in data4:
-                                if item.get('cur_unit') == 'USD':
-                                    usd_krw = float(item['deal_bas_r'].replace(',', ''))
-                                    break
-                        if usd_krw > 0:
-                            break
-            except: pass
-            if usd_krw == 0:
-                try:
-                    r5 = requests.get('https://api.frankfurter.app/latest?from=USD&to=KRW', timeout=3)
-                    usd_krw = float(r5.json()['rates']['KRW'])
-                except: pass
-            if usd_krw == 0 and bithumb:
-                usd_krw = bithumb
-
-            if upbit_btc > 0 and okx_btc > 0 and usd_krw > 0:
-                global_price = okx_btc * usd_krw
-                kimchi = round(((upbit_btc - global_price) / global_price) * 100 - 0.1, 2)
-        except: pass
-        return bithumb, kimchi
 
     now_ts2 = time.time()
-    if now_ts2 - st.session_state.get('bithumb_ts', 0) >= 30:
+    if 'bithumb_price' not in st.session_state:
         result, kimchi_result = fetch_market_data()
         if result is not None:
             st.session_state.bithumb_price = result
@@ -506,8 +458,7 @@ if st.session_state.page == 'settle':
         "<div style='font-family:Space Mono,monospace;font-size:1.8em;"
         "font-weight:700;color:#ffffff;letter-spacing:0.03em;'>" + bithumb_str + "</div>"
         "<div style='font-family:Space Mono,monospace;font-size:0.68em;"
-        "color:#5dade2;letter-spacing:0.1em;cursor:pointer;'"
-        " title='클릭하면 새로고침' onclick='window.location.reload()'>⟳ " + fetched_time + "</div>"
+        "color:#5dade2;letter-spacing:0.1em;'>" + fetched_time + "</div>"
         "</div>"
 
         "<a href='https://search.naver.com/search.naver?query=%EB%B9%97%EC%8D%B8+%ED%85%8C%EB%8D%94+%EC%8B%9C%EC%84%B8' "
@@ -520,6 +471,11 @@ if st.session_state.page == 'settle':
         "</div>"
     )
     st.markdown(html, unsafe_allow_html=True)
+
+    if st.button('⟳  시세 새로고침', key='refresh_ticker'):
+        if 'bithumb_price' in st.session_state:
+            del st.session_state['bithumb_price']
+        st.rerun()
 
     sc1, sc2 = st.columns(2)
     with sc1:
