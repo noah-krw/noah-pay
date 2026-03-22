@@ -425,7 +425,7 @@ if st.session_state.page == 'settle':
             upbit_usdt = float(r2.json()[0]['trade_price'])
             if bithumb and bithumb > 0 and upbit_usdt > 0:
                 raw = ((upbit_usdt / bithumb) - 1) * 100
-                kimchi = round(raw - 0.16, 2)
+                kimchi = round(raw - 0.03, 2)
         except: pass
         return bithumb, kimchi
 
