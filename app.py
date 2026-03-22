@@ -450,10 +450,7 @@ if st.session_state.page == 'settle':
     # ── 전광판 ────────────────────────────────────────────
 
     bithumb_str = ("&#8361; " + fmt(live_price)) if live_price > 0 else "&mdash;"
-    k_color  = "#2ecc71" if kimchi is not None and kimchi >= 0 else "#e74c3c"
-    k_glow   = "rgba(46,204,113,0.3)" if kimchi is not None and kimchi >= 0 else "rgba(231,76,60,0.3)"
-    k_sign   = "+" if kimchi is not None and kimchi >= 0 else ""
-    kimchi_str = (k_sign + str(kimchi) + "%") if kimchi is not None else "&mdash;"
+    bithumb_str = ("&#8361; " + fmt(live_price)) if live_price > 0 else "&mdash;"
 
     html = (
         "<style>@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.15;}}</style>"
@@ -462,6 +459,7 @@ if st.session_state.page == 'settle':
         "border:1px solid rgba(93,173,226,0.3);border-radius:10px;"
         "box-shadow:0 0 18px rgba(93,173,226,0.1);"
         "display:flex;align-items:center;justify-content:space-between;'>"
+
         "<div style='display:flex;align-items:center;gap:8px;'>"
         "<span style='display:inline-block;width:7px;height:7px;border-radius:50%;"
         "background:#2ecc71;box-shadow:0 0 7px #2ecc71;"
@@ -469,41 +467,25 @@ if st.session_state.page == 'settle':
         "<span style='font-family:Space Mono,monospace;font-size:0.68em;"
         "color:#5dade2;letter-spacing:0.1em;'>BITHUMB &nbsp; USDT / KRW</span>"
         "</div>"
+
+        "<div style='display:flex;flex-direction:column;align-items:center;gap:3px;'>"
         "<div style='font-family:Space Mono,monospace;font-size:1.8em;"
         "font-weight:700;color:#ffffff;letter-spacing:0.03em;'>" + bithumb_str + "</div>"
-        "<div style='display:flex;align-items:center;gap:8px;'>"
-        "<div style='display:flex;flex-direction:column;align-items:center;gap:2px;'>"
-        "<div style='display:flex;align-items:center;gap:6px;'>"
-        "<span style='font-family:Space Mono,monospace;font-size:0.7em;"
-        "color:rgba(255,255,255,0.3);'>김프</span>"
-        "<span style='font-family:Space Mono,monospace;font-size:1.1em;font-weight:700;"
-        "color:" + k_color + ";text-shadow:0 0 8px " + k_glow + ";'>" + kimchi_str + "</span>"
+        "<div style='font-family:Space Mono,monospace;font-size:0.68em;"
+        "color:#5dade2;letter-spacing:0.1em;'>" + fetched_time + "</div>"
         "</div>"
-        "<span style='font-family:Space Mono,monospace;font-size:0.55em;"
-        "color:rgba(255,255,255,0.2);letter-spacing:0.05em;'>참고용</span>"
-        "</div>"
-        "</div>"
-        "<div style='font-family:Space Mono,monospace;font-size:0.62em;"
-        "color:rgba(255,255,255,0.2);'>" + fetched_time + "</div>"
+
+        "<a href='https://search.naver.com/search.naver?query=%EB%B9%97%EC%8D%B8+%ED%85%8C%EB%8D%94+%EC%8B%9C%EC%84%B8' "
+        "target='_blank' style='"
+        "font-family:Space Mono,monospace;font-size:0.68em;font-weight:600;"
+        "color:#f39c12;border:1px solid rgba(243,156,18,0.45);border-radius:6px;"
+        "padding:6px 14px;text-decoration:none;letter-spacing:0.06em;"
+        "background:rgba(243,156,18,0.07);'>김프 확인 ↗</a>"
+
         "</div>"
     )
     st.markdown(html, unsafe_allow_html=True)
 
-    # 네이버 김프 수동 override
-    naver_k = st.session_state.get('naver_k', '')
-    if naver_k:
-        try:
-            kimchi = float(naver_k)
-            k_color = "#2ecc71" if kimchi >= 0 else "#e74c3c"
-            k_glow  = "rgba(46,204,113,0.3)" if kimchi >= 0 else "rgba(231,76,60,0.3)"
-            k_sign  = "+" if kimchi >= 0 else ""
-            kimchi_str = k_sign + str(kimchi) + "%"
-        except: pass
-
-    col_naver = st.columns([2, 1])
-    with col_naver[1]:
-        st.text_input("네이버 김프 직접입력 (%)", key="naver_k",
-            placeholder="예: -0.22")
 
     sc1, sc2 = st.columns(2)
     with sc1:
