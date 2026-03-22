@@ -384,12 +384,8 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
     if st.button("🚀  USDT 정산", use_container_width=True):
-        for k in ["t_b", "t_u", "t_s"]:
-            st.session_state[k] = ""
         st.session_state.page = 'settle'; st.rerun()
     if st.button("📤  USDT 탑업", use_container_width=True):
-        for k in ["s_b", "s_s", "s_amt", "bal_in", "w_in"]:
-            st.session_state[k] = ""
         st.session_state.page = 'topup'; st.rerun()
     if st.button("⚙️  머천트 관리", use_container_width=True): st.session_state.page = 'admin'; st.rerun()
 
@@ -484,7 +480,7 @@ if st.session_state.page == 'settle':
 
     sc1, sc2 = st.columns(2)
     with sc1:
-        if "s_b" not in st.session_state and live_price > 0:
+        if st.session_state.get("s_b", "") == "" and live_price > 0:
             st.session_state["s_b"] = str(live_price)
         sb_val = extract_int(st.text_input("빗썸 시세", key="s_b"))
     with sc2: ss_val = extract_int(st.text_input("수동 환율", key="s_s"))
@@ -598,7 +594,7 @@ elif st.session_state.page == 'topup':
 
     t_row1_col1, t_row1_col2 = st.columns(2)
     with t_row1_col1:
-        if "t_b" not in st.session_state and live_price > 0:
+        if st.session_state.get("t_b", "") == "" and live_price > 0:
             st.session_state["t_b"] = str(live_price)
         tb_val = extract_int(st.text_input("탑업 시세(빗썸)", key="t_b"))
     with t_row1_col2: tu_amt = extract_int(st.text_input("수량(USDT)", key="t_u"))
