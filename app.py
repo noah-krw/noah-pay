@@ -4,7 +4,7 @@ import streamlit.components.v1 as components
 import math, json, os, re
 
 # ============================================================
-# 정산 매크로 v93.0 - Noah 실장님 최종 지시사항 반영 (에러 해결)
+# 정산 매크로 v93.1 - 에러(TypeError) 완벽 해결 및 디자인 복구
 # ============================================================
 
 DB_FILE = "merchants.json"
@@ -40,7 +40,8 @@ def extract_int(text):
 
 def fmt(n): return f"{n:,}"
 
-def copy_box(text, color_type="blue", box_id="default"):
+# 에러 없는 복사 박스 (key 옵션 제거)
+def copy_box(text, color_type="blue"):
     colors = {
         "blue": {"border": "#4a90d9", "bg": "#060d18", "text": "#a8c7e8"},
         "green": {"border": "#27ae60", "bg": "#06180d", "text": "#7dcea0"},
@@ -68,10 +69,11 @@ def copy_box(text, color_type="blue", box_id="default"):
     }}
     </script>
     """
-    components.html(html_code, height=box_height, key=f"cbox_{box_id}")
+    components.html(html_code, height=box_height)
 
-st.set_page_config(page_title="정산 매크로 v93.0", layout="centered")
+st.set_page_config(page_title="정산 매크로 v93.1", layout="centered")
 
+# v89.8 스타일 그대로
 st.markdown("""
 <style>
     [data-testid="stAppViewContainer"] { background-color: #0a0e17 !important; color: #c8d6e5 !important; }
@@ -104,34 +106,35 @@ if st.session_state.page == 'settle':
     m_info = merchants[selected_m]
     
     st.markdown('<div class="label-header">01. 환율 설정</div>', unsafe_allow_html=True)
+    # 표기만 퍼센트로 변경
     sel_p = st.radio("적용 배수", ["4%", "4.5%", "5%"], index=0, horizontal=True)
     m_map = {"4%": 1.04, "4.5%": 1.045, "5%": 1.05}
     c1, c2 = st.columns(2)
-    with c1: b_val = extract_int(st.text_input("빗썸 시세", key="b_v_in"))
-    with c2: s_val = extract_int(st.text_input("수동 환율", key="s_v_in"))
+    with c1: b_val = extract_int(st.text_input("빗썸 시세", key="b_v_in", value="0"))
+    with c2: s_val = extract_int(st.text_input("수동 환율", key="s_v_in", value="0"))
     rate = s_val if s_val > 0 else math.ceil(b_val * m_map[sel_p])
-    if rate > 0: copy_box(f"1 USDT = {fmt(rate)} KRW", "blue", box_id="rate")
+    if rate > 0: copy_box(f"1 USDT = {fmt(rate)} KRW", "blue")
 
     st.markdown('<div class="label-header">02. 정산 요청</div>', unsafe_allow_html=True)
     amount = extract_int(st.text_input("정산 금액 (KRW)", key="amt_v_in"))
-    edit_msg = st.text_area("멘트 수정", value="Please confirm the address and calculation.\nOnce approved, we will proceed immediately", height=80, key="msg_v_in")
+    edit_msg = st.text_area("멘트 수정", value="Please confirm the address and calculation.\nOnce approved, we will proceed immediately", height=80)
     if amount > 0:
         u_val = round(amount / rate, 2)
         s_msg = f"- {selected_m} settlement amount : {fmt(amount)} krw\n- exchange to usdt : {u_val:,.2f} usdt\n- 1usdt = {fmt(rate)} krw\n\n{m_info['wallet']}\n\n{edit_msg}"
-        copy_box(s_msg, "blue", box_id="settle")
+        copy_box(s_msg, "blue")
 
     st.markdown('<div class="label-header">03. 최종 잔액 보고</div>', unsafe_allow_html=True)
     bal_in = extract_int(st.text_input("현재 잔액 입력 (KRW)", key="bal_v_in"))
     if bal_in > 0 and amount > 0:
         u_ceil = math.ceil(amount / rate)
         b_msg = f"Balance & settlement update\n\n- {selected_m}\nsettlement amount : {fmt(amount)} krw\nexchange to usdt : {fmt(u_ceil)} usdt\n1usdt = {fmt(rate)} krw\n\n- {selected_m} : {fmt(bal_in)} krw"
-        copy_box(b_msg, "green", box_id="balance")
+        copy_box(b_msg, "green")
 
     st.markdown('<div class="label-header">04. 마크업 수수료</div>', unsafe_allow_html=True)
     m_fee = float(m_info.get('fee', 0.5))
     markup = math.ceil(amount * (m_fee / 100))
     if amount > 0:
-        copy_box(f"드래곤 테더정산 마크업 {m_fee}% {selected_m} / {fmt(amount)} / {fmt(markup)}", "yellow", box_id="markup")
+        copy_box(f"드래곤 테더정산 마크업 {m_fee}% {selected_m} / {fmt(amount)} / {fmt(markup)}", "yellow")
 
     st.divider()
     st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
@@ -140,16 +143,17 @@ if st.session_state.page == 'settle':
     with cr: t_usdt = extract_int(st.text_input("탑업 USDT", key="tu_v_in"))
     t_rate = tm_rate - math.ceil(tm_rate * 0.005) if tm_rate > 0 else 0
     if t_usdt > 0 and t_rate > 0:
+        total_krw = t_usdt * t_rate
         my_w = st.session_state.db.get('my_wallet', '')
-        copy_box(f"top-up\n\nmid : {selected_m}\ntop-up amount : {fmt(t_usdt)} usdt\nexchange to KRW : {fmt(t_usdt * t_rate)} krw\n1usdt = {fmt(t_rate)} krw\n\n{my_w}\n\nPlease check...", "green", box_id="topup")
+        copy_box(f"top-up\n\nmid : {selected_m}\ntop-up amount : {fmt(t_usdt)} usdt\nexchange to KRW : {fmt(total_krw)} krw\n1usdt = {fmt(t_rate)} krw\n\n{my_w}\n\nPlease check...", "green")
 
 elif st.session_state.page == 'admin':
     st.title("⚙️ 머천트 및 내 지갑 관리")
     st.subheader("💳 내 USDT 지갑 (Top-up용)")
-    my_w = st.text_input("지갑 주소", value=st.session_state.db.get('my_wallet', ''), key="my_w_admin")
-    if st.button("저장하기", key="save_my_w"):
+    my_w = st.text_input("내 지갑 주소 입력", value=st.session_state.db.get('my_wallet', ''))
+    if st.button("내 지갑 저장"):
         st.session_state.db['my_wallet'] = my_w
-        save_data(st.session_state.db); st.success("저장 완료!")
+        save_data(st.session_state.db); st.success("저장되었습니다!")
     st.divider()
     with st.form("new_m_admin"):
         st.subheader("➕ 신규 업체 등록")
@@ -164,11 +168,11 @@ elif st.session_state.page == 'admin':
     for name in sorted(st.session_state.db['merchants'].keys()):
         with st.expander(f"📦 {name}"):
             info = st.session_state.db['merchants'][name]
-            u_w = st.text_input("지갑", value=info['wallet'], key=f"w_{name}_admin")
-            u_f = st.text_input("요율", value=info['fee'], key=f"f_{name}_admin")
-            if st.button("저장", key=f"s_{name}_admin"):
+            u_w = st.text_input("지갑", value=info['wallet'], key=f"w_{name}")
+            u_f = st.text_input("요율(%)", value=info['fee'], key=f"f_{name}")
+            if st.button("저장", key=f"s_{name}"):
                 st.session_state.db['merchants'][name] = {"wallet": u_w, "fee": u_f}
                 save_data(st.session_state.db); st.rerun()
-            if st.button("삭제", key=f"d_{name}_admin"):
+            if st.button("삭제", key=f"d_{name}"):
                 del st.session_state.db['merchants'][name]
                 save_data(st.session_state.db); st.rerun()
