@@ -589,7 +589,9 @@ if st.session_state.page == 'settle':
     section_header("06", "TOP-UP 탑업", "#2ecc71", "46,204,113")
 
     t_row1_col1, t_row1_col2 = st.columns(2)
-    with t_row1_col1: tb_val = extract_int(st.text_input("탑업 시세(빗썸)", key="t_b"))
+    with t_row1_col1:
+        tb_default = str(live_price) if live_price > 0 and not st.session_state.get("t_b") else st.session_state.get("t_b", "")
+        tb_val = extract_int(st.text_input("탑업 시세(빗썸)", value=tb_default, key="t_b"))
     with t_row1_col2: tu_amt = extract_int(st.text_input("수량(USDT)", key="t_u"))
 
     t_row2_col1, t_row2_col2 = st.columns(2)
