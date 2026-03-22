@@ -439,7 +439,8 @@ if st.session_state.page == 'settle':
     live_price = st.session_state.get("bithumb_price", 0)
     kimchi     = st.session_state.get("kimchi", None)
     usd_krw    = st.session_state.get("usd_krw", 0)
-    fetched_time = datetime.datetime.fromtimestamp(st.session_state.get("bithumb_ts", time.time())).strftime("%H:%M:%S")
+    kst = datetime.timezone(datetime.timedelta(hours=9))
+    fetched_time = datetime.datetime.fromtimestamp(st.session_state.get("bithumb_ts", time.time()), tz=kst).strftime("%H:%M:%S")
 
     # ── 전광판 ────────────────────────────────────────────
     if kimchi is not None:
@@ -455,42 +456,33 @@ if st.session_state.page == 'settle':
 
     html = (
         "<style>@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.15;}}</style>"
-
-        "<div style='padding:12px 18px;margin-bottom:8px;"
+        "<div style='padding:14px 20px;margin-bottom:14px;"
         "background:linear-gradient(135deg,#030f1c,#041810);"
         "border:1px solid rgba(93,173,226,0.3);border-radius:10px;"
         "box-shadow:0 0 18px rgba(93,173,226,0.1);"
         "display:flex;align-items:center;justify-content:space-between;'>"
-        "<div>"
-        "<div style='font-family:Space Mono,monospace;font-size:0.65em;"
-        "color:#5dade2;letter-spacing:0.12em;margin-bottom:6px;'>"
-        "BITHUMB &nbsp; USDT / KRW &nbsp;"
+
+        "<div style='display:flex;align-items:center;gap:6px;'>"
         "<span style='display:inline-block;width:6px;height:6px;border-radius:50%;"
         "background:#2ecc71;box-shadow:0 0 6px #2ecc71;"
-        "animation:blink 1.5s infinite;vertical-align:middle;'></span>"
-        "</div>"
-        "<div style='font-family:Space Mono,monospace;font-size:1.7em;"
-        "font-weight:700;color:#fff;letter-spacing:0.03em;'>" + bithumb_str + "</div>"
-        "</div>"
-        "<div style='font-family:Space Mono,monospace;font-size:0.65em;"
-        "color:rgba(255,255,255,0.2);'>" + fetched_time + " 기준</div>"
+        "animation:blink 1.5s infinite;'></span>"
+        "<span style='font-family:Space Mono,monospace;font-size:0.65em;"
+        "color:#5dade2;letter-spacing:0.1em;'>BITHUMB USDT/KRW</span>"
         "</div>"
 
-        "<div style='padding:12px 22px;margin-bottom:16px;"
-        "background:linear-gradient(135deg,#060606,#0a0a0a);"
-        "border:1px solid " + k_color + "55;border-radius:10px;"
-        "box-shadow:0 0 20px " + k_glow + ";"
-        "display:flex;align-items:center;justify-content:space-between;'>"
+        "<div style='font-family:Space Mono,monospace;font-size:1.7em;"
+        "font-weight:700;color:#fff;letter-spacing:0.03em;'>" + bithumb_str + "</div>"
+
         "<div style='display:flex;align-items:center;gap:10px;'>"
-        "<span style='font-family:Space Mono,monospace;font-size:0.65em;"
-        "color:" + k_color + ";letter-spacing:0.15em;'>KIMCHI PREMIUM</span>"
-        "<span style='font-family:Space Mono,monospace;font-size:0.65em;"
-        "padding:2px 8px;border-radius:4px;"
-        "background:" + k_color + "22;color:" + k_color + ";'>" + k_label + "</span>"
-        "</div>"
-        "<div style='font-family:Space Mono,monospace;font-size:1.9em;"
+        "<span style='font-family:Space Mono,monospace;font-size:0.7em;"
+        "color:rgba(255,255,255,0.35);letter-spacing:0.08em;'>김프</span>"
+        "<span style='font-family:Space Mono,monospace;font-size:1.1em;"
         "font-weight:700;color:" + k_color + ";"
-        "text-shadow:0 0 16px " + k_glow + ";'>" + kimchi_str + "</div>"
+        "text-shadow:0 0 10px " + k_glow + ";'>" + kimchi_str + "</span>"
+        "</div>"
+
+        "<div style='font-family:Space Mono,monospace;font-size:0.62em;"
+        "color:rgba(255,255,255,0.18);'>" + fetched_time + "</div>"
         "</div>"
     )
     st.markdown(html, unsafe_allow_html=True)
