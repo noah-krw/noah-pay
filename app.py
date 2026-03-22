@@ -4,10 +4,10 @@ import streamlit.components.v1 as components
 import math, json, os, re
 
 # ============================================================
-# 정산 매크로 v95.9 - [01번 복사부활 / 06번 3열박제 / 명칭복구]
+# 정산 매크로 v96.0 - [클로드 2+2 레이아웃 이식 및 명칭/알림 완결]
 # ============================================================
 
-DB_FILE = "merchants_v95_final.json"
+DB_FILE = "merchants_v96.json"
 
 def get_default_data():
     return {
@@ -55,7 +55,7 @@ def editable_box(text, color_type="blue", box_id="default"):
         components.html(f"<script>navigator.clipboard.writeText(`{content}`);</script>", height=0)
         st.toast("복사 완료")
 
-st.set_page_config(page_title="정산 매크로 v95.9", layout="centered")
+st.set_page_config(page_title="정산 매크로 v96.0", layout="centered")
 
 st.markdown("""
 <style>
@@ -63,6 +63,7 @@ st.markdown("""
     div[data-baseweb="input"] { background-color: #ffffff !important; border-radius: 6px !important; }
     input { color: #d4ac0d !important; font-weight: bold !important; font-family: 'Courier New', monospace !important; font-size: 1.25em !important; }
     .label-header { color: #4a90d9; font-weight: bold; font-size: 1.25em; border-bottom: 2px solid #1e2d45; padding-bottom: 8px; margin-top: 35px; margin-bottom: 15px; text-transform: uppercase; }
+    .rate-text { color: #5dade2; font-weight: bold; font-size: 1.1em; margin: 10px 0; font-family: monospace; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -84,8 +85,6 @@ if st.session_state.page == 'settle':
     default_idx = sorted_keys.index('spfxm') if 'spfxm' in sorted_keys else 0
     selected_m = st.selectbox("업체 선택", sorted_keys, index=default_idx)
     m_info = merchants[selected_m]
-    
-    st.info(f"📝 비고: {m_info.get('note', '')}")
 
     # 01. 정산 환율
     st.markdown('<div class="label-header">01. 정산 환율</div>', unsafe_allow_html=True)
@@ -98,10 +97,10 @@ if st.session_state.page == 'settle':
     s_rate = ss_val if ss_val > 0 else math.ceil(sb_val * m_map[sel_p])
     
     if s_rate > 0:
-        # 실장님 요청: 01번 환율 정보 복사버튼 부활
+        # 실장님 요청: 01번은 복사 가능하도록 박스형 부활
         editable_box(f"1usdt = {fmt(s_rate)} krw", "sky", "rate_01")
     
-    # 02. 정산 멘트 생성 (금액 입력)
+    # 02. 정산 멘트 생성
     st.markdown('<div class="label-header">02. 정산 멘트 생성</div>', unsafe_allow_html=True)
     amt = extract_int(st.text_input("정산 금액 (KRW) 입력", key="s_amt"))
     if amt > 0 and s_rate > 0:
@@ -129,40 +128,47 @@ if st.session_state.page == 'settle':
     st.markdown('<div class="label-header" style="color:#e74c3c;">05. 정산(세틀먼트) 요청</div>', unsafe_allow_html=True)
     w_bal = extract_int(st.text_input("하이 밸런스 경고용 잔액", key="w_in"))
     if w_bal > 0:
+        # 실장님 컨펌: 05번은 박스 없이 단순 표시
+        st.markdown(f'<p class="rate-text">>>> 적용 환율 1usdt = {fmt(s_rate)} krw</p>', unsafe_allow_html=True)
         w_msg = f"Hello, Team\nCurrently, the balance of the merchants is too high.\nTo ensure a safe balance, please proceed with USDT settlement.\nThank you\n\nBalance update\n\n- {selected_m} : {fmt(w_bal)} krw"
         editable_box(w_msg, "red", "res_05")
 
     st.divider()
-    # 06. TOP-UP 요청 (가로 3열 디자인 박제)
+    # 06. TOP-UP 요청 (클로드 2+2 레이아웃 반영)
     st.markdown('<div class="label-header" style="color:#2ecc71;">06. TOP-UP 요청</div>', unsafe_allow_html=True)
-    t1, t2, t3 = st.columns(3)
-    with t1: tb_val = extract_int(st.text_input("탑업 시세(빗썸)", key="t_b"))
-    with t2: tu_amt = extract_int(st.text_input("수량(USDT)", key="t_u"))
-    with t3: ts_val = extract_int(st.text_input("수동 환율", key="t_s"))
     
-    t_rate = ts_val if ts_val > 0 else (tb_val - math.ceil(tb_val * 0.005) if tb_val > 0 else 0)
+    # Row 1: 2열 배치
+    t_row1_col1, t_row1_col2 = st.columns(2)
+    with t_row1_col1: tb_val = extract_int(st.text_input("탑업 시세(빗썸)", key="t_b"))
+    with t_row1_col2: tu_amt = extract_int(st.text_input("수량(USDT)", key="t_u"))
     
-    if t_rate > 0:
-        # 탑업 환율 정보 복사버튼 포함
-        editable_box(f"1usdt = {fmt(t_rate)} krw", "sky", "rate_06")
-        if tu_amt > 0:
-            total_t_krw = tu_amt * t_rate
-            my_w = st.session_state.db.get('my_wallet', '')
-            t_msg = f"top-up\n\nmid : {selected_m}\ntop-up amount : {fmt(tu_amt)} usdt\nexchange to KRW : {fmt(total_t_krw)} krw\n1usdt = {fmt(t_rate)} krw\n\n{my_w}\n\nPlease check the invoice and transfer the USDT to the address provided."
-            editable_box(t_msg, "green", "res_06_req")
+    # Row 2: 2열 배치
+    t_row2_col1, t_row2_col2 = st.columns(2)
+    with t_row2_col1: ts_val = extract_int(st.text_input("수동 환율", key="t_s"))
+    with t_row2_col2:
+        t_rate = ts_val if ts_val > 0 else (tb_val - math.ceil(tb_val * 0.005) if tb_val > 0 else 0)
+        if t_rate > 0:
+            st.markdown(f"<div style='padding-top:32px; color:#5dade2; font-family:Courier New; font-size:1.1em;'>1usdt = {fmt(t_rate)} krw</div>", unsafe_allow_html=True)
             
-            m_fee_t = float(m_info.get('fee', 0.5))
-            base_p = ts_val if ts_val > 0 else tb_val
-            t_markup = math.ceil((tu_amt * base_p) * (m_fee_t / 100))
-            f_msg = f"드래곤 테더탑업 마크업 {m_fee_t}% {selected_m} / {fmt(tu_amt * base_p)} / {fmt(t_markup)}"
-            editable_box(f_msg, "yellow", "res_06_fee")
+    if tu_amt > 0 and t_rate > 0:
+        total_t_krw = tu_amt * t_rate
+        my_w = st.session_state.db.get('my_wallet', '')
+        # 스케치 멘트 최종 수정
+        t_msg = f"top-up\n\nmid : {selected_m}\ntop-up amount : {fmt(tu_amt)} usdt\nexchange to KRW : {fmt(total_t_krw)} krw\n1usdt = {fmt(t_rate)} krw\n\n{my_w}\n\nPlease check the invoice and transfer the USDT to the address provided."
+        editable_box(t_msg, "green", "res_06_req")
+        
+        m_fee_t = float(m_info.get('fee', 0.5))
+        base_p = ts_val if ts_val > 0 else tb_val
+        t_markup = math.ceil((tu_amt * base_p) * (m_fee_t / 100))
+        f_msg = f"드래곤 테더탑업 마크업 {m_fee_t}% {selected_m} / {fmt(tu_amt * base_p)} / {fmt(t_markup)}"
+        editable_box(f_msg, "yellow", "res_06_fee")
 
 elif st.session_state.page == 'admin':
     st.title("⚙️ 머천트 및 지갑 관리")
     my_w = st.text_input("내 USDT 지갑 주소", value=st.session_state.db.get('my_wallet', ''))
-    if st.button("지갑 저장"): 
+    if st.button("내 지갑 저장"): 
         st.session_state.db['my_wallet'] = my_w
-        save_data(st.session_state.db); st.toast("지갑 정보 저장 완료!")
+        save_data(st.session_state.db); st.toast("지갑 정보가 저장되었습니다.")
     
     st.divider()
     with st.form("new_merchant"):
@@ -184,6 +190,7 @@ elif st.session_state.page == 'admin':
             u_n = st.text_input("비고", value=info.get('note', ''), key=f"n_{name}")
             if st.button("변경사항 저장", key=f"s_{name}"):
                 st.session_state.db['merchants'][name] = {"wallet": u_w, "fee": u_f, "note": u_n}
-                save_data(st.session_state.db); st.toast(f"{name} 변경사항 저장됨")
+                save_data(st.session_state.db)
+                st.toast(f"{name} 변경사항이 저장되었습니다.") # 알림 부활
             if st.button("삭제", key=f"d_{name}"): 
                 del st.session_state.db['merchants'][name]; save_data(st.session_state.db); st.rerun()
