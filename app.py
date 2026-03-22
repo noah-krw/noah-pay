@@ -371,52 +371,8 @@ with st.sidebar:
     st.divider()
 
     # ── 입력값 초기화 버튼 ─────────────────────────────────
-    st.markdown("""
-    <div style="font-family:'Space Mono',monospace; font-size:0.68em; color:#3a5a7a;
-                letter-spacing:0.1em; text-transform:uppercase; margin-bottom:6px;">
-        ▸ 작업 초기화
-    </div>
-    """, unsafe_allow_html=True)
-
     reset_keys = ["s_b", "s_s", "s_amt", "bal_in", "w_in", "t_b", "t_u", "t_s"]
-    # 커스텀 스타일 버튼
-    st.markdown("""
-    <style>
-    div[data-testid="stSidebar"] div:has(> div > button[kind="secondaryFormSubmit"]) { display:none; }
-    #new_session_btn {
-        display: block;
-        width: 100%;
-        padding: 13px 0;
-        margin: 4px 0 2px;
-        background: linear-gradient(135deg, #0a2e1a 0%, #0d2535 100%);
-        color: #2ecc71;
-        border: 1.5px solid #2ecc71;
-        border-radius: 8px;
-        font-family: 'Space Mono', 'Courier New', monospace;
-        font-size: 1.05em;
-        font-weight: 700;
-        letter-spacing: 0.15em;
-        text-align: center;
-        cursor: pointer;
-        text-transform: uppercase;
-        box-shadow: 0 0 14px rgba(46,204,113,0.18), inset 0 0 20px rgba(46,204,113,0.04);
-        transition: all 0.2s ease;
-    }
-    #new_session_btn:hover {
-        background: #2ecc71;
-        color: #000;
-        box-shadow: 0 0 28px rgba(46,204,113,0.5);
-        transform: translateY(-1px);
-    }
-    #new_session_btn:active {
-        transform: translateY(0px);
-        box-shadow: 0 0 10px rgba(46,204,113,0.3);
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-    clicked = st.button("⟳  NEW SESSION", key="reset_inputs", use_container_width=True)
-    if clicked:
+    if st.button("⟳  NEW SESSION", key="reset_inputs", use_container_width=True):
         for k in reset_keys:
             if k in st.session_state:
                 del st.session_state[k]
