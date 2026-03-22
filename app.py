@@ -421,67 +421,33 @@ if st.session_state.page == 'settle':
         except: pass
         return 0
 
-    def fetch_all_market_data():
-        from concurrent.futures import ThreadPoolExecutor, as_completed
+    @st.cache_data(ttl=30, show_spinner=False)
+    def fetch_all_market_data(_ts):
+        bithumb, kimchi, usd_krw = 0, None, 0
+        try:
+            res = requests.get("https://api.bithumb.com/public/ticker/USDT_KRW", timeout=2)
+            data = res.json()
+            if data.get("status") == "0000":
+                bithumb = int(float(data["data"]["closing_price"]))
+        except: pass
+        try:
+            r1 = requests.get("https://api.upbit.com/v1/ticker?markets=KRW-BTC", timeout=2)
+            r2 = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=2)
+            krw_btc = float(r1.json()[0]["trade_price"])
+            usd_btc = float(r2.json()["price"])
+            # 달러환율: 빗썸 USDT 시세 그대로 활용 (이미 가져왔으므로 추가 API 불필요)
+            if bithumb > 0:
+                usd_krw = bithumb
+                kimchi = round(((krw_btc / (usd_btc * usd_krw)) - 1) * 100, 2)
+        except: pass
+        return bithumb, kimchi, usd_krw
 
-        def get_bithumb():
-            try:
-                res = requests.get("https://api.bithumb.com/public/ticker/USDT_KRW", timeout=2)
-                data = res.json()
-                if data.get("status") == "0000":
-                    return ("bithumb", int(float(data["data"]["closing_price"])))
-            except: pass
-            return ("bithumb", 0)
-
-        def get_upbit():
-            try:
-                res = requests.get("https://api.upbit.com/v1/ticker?markets=KRW-BTC", timeout=2)
-                return ("upbit", float(res.json()[0]["trade_price"]))
-            except: pass
-            return ("upbit", 0)
-
-        def get_binance():
-            try:
-                res = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=2)
-                return ("binance", float(res.json()["price"]))
-            except: pass
-            return ("binance", 0)
-
-        def get_fx():
-            try:
-                res = requests.get("https://open.er-api.com/v6/latest/USD", timeout=2)
-                return ("fx", float(res.json()["rates"]["KRW"]))
-            except: pass
-            return ("fx", 0)
-
-        results = {}
-        with ThreadPoolExecutor(max_workers=4) as ex:
-            futures = [ex.submit(f) for f in [get_bithumb, get_upbit, get_binance, get_fx]]
-            for future in as_completed(futures, timeout=4):
-                try:
-                    k, v = future.result()
-                    results[k] = v
-                except: pass
-
-        bithumb = results.get("bithumb", 0)
-        upbit   = results.get("upbit", 0)
-        binance = results.get("binance", 0)
-        fx      = results.get("fx", 0)
-
-        kimchi  = None
-        if upbit and binance and fx:
-            kimchi = round(((upbit / (binance * fx)) - 1) * 100, 2)
-
-        return bithumb, kimchi, int(fx) if fx else 0
-
-    # 30초마다 갱신
-    now_ts = time.time()
-    if "bithumb_price" not in st.session_state or now_ts - st.session_state.get("bithumb_ts", 0) > 30:
-        bithumb, kimchi, usd_krw = fetch_all_market_data()
-        st.session_state.bithumb_price = bithumb
-        st.session_state.kimchi = kimchi
-        st.session_state.usd_krw = usd_krw
-        st.session_state.bithumb_ts = now_ts
+    now_ts = int(time.time() // 30)  # 30초 버킷
+    bithumb, kimchi, usd_krw = fetch_all_market_data(now_ts)
+    st.session_state.bithumb_price = bithumb
+    st.session_state.kimchi = kimchi
+    st.session_state.usd_krw = usd_krw
+    st.session_state.bithumb_ts = time.time()
 
     live_price = st.session_state.get("bithumb_price", 0)
     kimchi     = st.session_state.get("kimchi", None)
