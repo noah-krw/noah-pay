@@ -61,8 +61,8 @@ def editable_box(text, color_type="blue", box_id="default"):
             <textarea id="copy_area_{box_id}" style="
                 width: 100%;
                 height: {height - 55}px;
-                background: transparent;
-                color: {c['text']};
+                background: #ffffff;
+                color: #1a1a1a;
                 border: none;
                 outline: none;
                 font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
@@ -76,11 +76,14 @@ def editable_box(text, color_type="blue", box_id="default"):
             ">{text}</textarea>
             <div style="
                 display: flex;
+                align-items: center;
                 justify-content: flex-end;
+                gap: 10px;
                 padding: 8px 12px 10px;
-                border-top: 1px solid rgba(255,255,255,0.04);
+                border-top: 1px solid rgba(255,255,255,0.08);
                 background: rgba(0,0,0,0.2);
             ">
+                <span style="font-family:'Courier New',monospace;font-size:11px;color:rgba(255,255,255,0.28);letter-spacing:0.06em;">✎ 직접 수정 가능</span>
                 <button id="btn_{box_id}" onclick="copyText_{box_id}()" style="
                     display: flex;
                     align-items: center;
