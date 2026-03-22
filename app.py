@@ -373,7 +373,7 @@ with st.sidebar:
 
     st.divider()
 
-    reset_keys = ["s_b", "s_s", "s_amt", "bal_in", "w_in", "t_b", "t_u", "t_s"]
+    reset_keys = ["s_b", "s_s", "s_amt", "bal_in", "w_in", "t_b", "t_u", "t_s", "naver_k"]
     if st.button("⟳  NEW SESSION", key="reset_inputs", use_container_width=True):
         for k in reset_keys:
             st.session_state[k] = ""
@@ -418,13 +418,13 @@ if st.session_state.page == 'settle':
             if r1.json().get('status') == '0000':
                 bithumb = int(float(r1.json()['data']['closing_price']))
         except: pass
-        # 김프 = 업비트 USDT/KRW ÷ 빗썸 USDT/KRW - 1
-        # 빗썸 USDT ≈ 매매기준율 역할 → 네이버와 가장 근접
+        # 김프 = (빗썸USDT - 환율) / 환율 * 100 - 0.2 보정
         try:
-            r2 = requests.get('https://api.upbit.com/v1/ticker?markets=KRW-USDT', timeout=3)
-            upbit_usdt = float(r2.json()[0]['trade_price'])
-            if bithumb and bithumb > 0:
-                kimchi = round(((upbit_usdt / bithumb) - 1) * 100, 2)
+            r2 = requests.get('https://api.frankfurter.app/latest?from=USD&to=KRW', timeout=3)
+            usd_krw = float(r2.json()['rates']['KRW'])
+            if bithumb and bithumb > 0 and usd_krw > 0:
+                raw = ((bithumb - usd_krw) / usd_krw) * 100
+                kimchi = round(raw - 0.2, 2)  # 네이버 근사 보정
         except: pass
         return bithumb, kimchi
 
@@ -487,6 +487,22 @@ if st.session_state.page == 'settle':
         "</div>"
     )
     st.markdown(html, unsafe_allow_html=True)
+
+    # 네이버 김프 수동 override
+    naver_k = st.session_state.get('naver_k', '')
+    if naver_k:
+        try:
+            kimchi = float(naver_k)
+            k_color = "#2ecc71" if kimchi >= 0 else "#e74c3c"
+            k_glow  = "rgba(46,204,113,0.3)" if kimchi >= 0 else "rgba(231,76,60,0.3)"
+            k_sign  = "+" if kimchi >= 0 else ""
+            kimchi_str = k_sign + str(kimchi) + "%"
+        except: pass
+
+    col_naver = st.columns([2, 1])
+    with col_naver[1]:
+        st.text_input("네이버 김프 직접입력 (%)", key="naver_k",
+            placeholder="예: -0.22")
 
     sc1, sc2 = st.columns(2)
     with sc1:
