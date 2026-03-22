@@ -439,7 +439,7 @@ if st.session_state.page == 'settle':
     live_price = st.session_state.get("bithumb_price", 0)
     kimchi     = st.session_state.get("kimchi", None)
     usd_krw    = st.session_state.get("usd_krw", 0)
-    fetched_time = datetime.datetime.fromtimestamp(st.session_state.get("bithumb_ts", now_ts)).strftime("%H:%M:%S")
+    fetched_time = datetime.datetime.fromtimestamp(st.session_state.get("bithumb_ts", time.time())).strftime("%H:%M:%S")
 
     # ── 전광판 ────────────────────────────────────────────
     if kimchi is not None:
@@ -503,7 +503,7 @@ if st.session_state.page == 'settle':
     s_rate = ss_val if ss_val > 0 else math.ceil(sb_val * m_map[sel_p])
 
     # 30초 후 자동 리런
-    if now_ts - st.session_state.get("bithumb_ts", 0) > 30:
+    if time.time() - st.session_state.get("bithumb_ts", 0) > 30:
         st.rerun()
 
     if s_rate > 0:
