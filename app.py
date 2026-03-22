@@ -360,6 +360,19 @@ def section_header(num, title, color="#4a90d9", rgb="74,144,217"):
 if 'db' not in st.session_state: st.session_state.db = load_data()
 if 'page' not in st.session_state: st.session_state.page = 'settle'
 
+# ── 빗썸 시세 최초 1회만 fetch (전역) ────────────────
+if 'bithumb_price' not in st.session_state:
+    try:
+        _r = requests.get('https://api.bithumb.com/public/ticker/USDT_KRW', timeout=3)
+        if _r.json().get('status') == '0000':
+            st.session_state.bithumb_price = int(float(_r.json()['data']['closing_price']))
+        else:
+            st.session_state.bithumb_price = 0
+    except:
+        st.session_state.bithumb_price = 0
+    st.session_state.bithumb_ts = time.time()
+    st.session_state.kimchi = None
+
 # ── 사이드바 ───────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""
@@ -408,27 +421,6 @@ if st.session_state.page == 'settle':
 
     import datetime
 
-    def fetch_market_data():
-        bithumb = None
-        try:
-            r1 = requests.get('https://api.bithumb.com/public/ticker/USDT_KRW', timeout=3)
-            if r1.json().get('status') == '0000':
-                bithumb = int(float(r1.json()['data']['closing_price']))
-        except: pass
-        return bithumb, None
-
-
-    now_ts2 = time.time()
-    if 'bithumb_price' not in st.session_state:
-        result, kimchi_result = fetch_market_data()
-        if result is not None:
-            st.session_state.bithumb_price = result
-            st.session_state.bithumb_ts = now_ts2
-        elif 'bithumb_price' not in st.session_state:
-            st.session_state.bithumb_price = 0
-        if kimchi_result is not None:
-            st.session_state.kimchi = kimchi_result
-            st.session_state.bithumb_ts = now_ts2
 
     live_price = st.session_state.get("bithumb_price", 0)
     kimchi     = st.session_state.get("kimchi", None)
