@@ -275,8 +275,8 @@ st.markdown("""
         box-shadow: 0 0 0 2px rgba(74,144,217,0.1) !important;
     }
     input {
-        color: #d4ac0d !important;
-        font-weight: 700 !important;
+        color: #dce8f5 !important;
+        font-weight: 400 !important;
         font-family: 'Space Mono', monospace !important;
         font-size: 1.1em !important;
         background: transparent !important;
