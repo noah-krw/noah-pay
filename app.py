@@ -4,7 +4,7 @@ import streamlit.components.v1 as components
 import math, json, os, re, requests, time, datetime
 
 # ============================================================
-# 정산 매크로 v97.0 - [디자인 개선: 헤더, 복사버튼, 텍스트박스, 입력필드]
+# 정산 매크로 v97.0 - [멘트 형식 업데이트 완료]
 # ============================================================
 
 DB_FILE = "merchants_v96.json"
@@ -498,9 +498,11 @@ if st.session_state.page == 'settle':
     amt = extract_int(st.text_input("정산 금액 (KRW) 입력", key="s_amt"))
     if amt > 0 and s_rate > 0:
         u_val = round(amt / s_rate, 2)
-        s_msg = (f"- {selected_m} settlement amount : {fmt(amt)} krw\n"
-                 f"- exchange to usdt : {u_val:,.2f} usdt\n"
-                 f"- 1usdt = {fmt(s_rate)} krw\n\n"
+        # [수정] 정산 안내멘트 형식 변경
+        s_msg = (f"mid : {selected_m}\n"
+                 f"settlement amount : {fmt(amt)} krw\n"
+                 f"exchange to usdt : {u_val:,.2f} usdt\n"
+                 f"1usdt = {fmt(s_rate)} krw\n\n"
                  f"{m_info['wallet']}\n\n"
                  f"Please confirm the address and calculation.\n"
                  f"Once approved, we will proceed immediately")
@@ -614,10 +616,10 @@ elif st.session_state.page == 'topup':
     if tu_amt > 0 and t_rate > 0:
         total_t_krw = tu_amt * t_rate
         my_w = st.session_state.db.get('my_wallet', '')
-        t_msg = (f"top-up\n\n"
-                 f"mid : {selected_m}\n"
-                 f"top-up amount : {fmt(tu_amt)} usdt\n"
-                 f"exchange to KRW : {fmt(total_t_krw)} krw\n"
+        # [수정] 탑업 안내멘트 형식 변경
+        t_msg = (f"mid : {selected_m}\n"
+                 f"top-up usdt : {fmt(tu_amt)} usdt\n"
+                 f"exchange to krw : {fmt(total_t_krw)} krw\n"
                  f"1usdt = {fmt(t_rate)} krw\n\n"
                  f"{my_w}\n\n"
                  f"Please check the invoice and transfer the USDT to the address provided.")
@@ -726,7 +728,7 @@ elif st.session_state.page == 'admin':
     for name in sorted(st.session_state.db['merchants'].keys()):
         with st.expander(f"📦 {name} 관리"):
             info = st.session_state.db['merchants'][name]
-            u_w = st.text_input("지갑주소",          value=info['wallet'],          key=f"w_{name}")
+            u_w = st.text_input("지갑주소",           value=info['wallet'],          key=f"w_{name}")
             u_f = st.text_input("마크업 수수료 (%)", value=info['fee'],             key=f"f_{name}")
             u_n = st.text_input("비고",              value=info.get('note', ''),   key=f"n_{name}")
             col_save, col_del = st.columns([3, 1])
