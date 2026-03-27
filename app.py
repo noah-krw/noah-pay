@@ -4,7 +4,7 @@ import streamlit.components.v1 as components
 import math, json, os, re, requests, time, datetime
 
 # ============================================================
-# 정산 매크로 v97.0 - [멘트 형식 업데이트 완료]
+# 정산 매크로 v97.0 - [디자인 개선: 헤더, 복사버튼, 텍스트박스, 입력필드]
 # ============================================================
 
 DB_FILE = "merchants_v96.json"
@@ -498,11 +498,9 @@ if st.session_state.page == 'settle':
     amt = extract_int(st.text_input("정산 금액 (KRW) 입력", key="s_amt"))
     if amt > 0 and s_rate > 0:
         u_val = round(amt / s_rate, 2)
-        # [수정] 정산 안내멘트 형식 변경
-        s_msg = (f"mid : {selected_m}\n"
-                 f"settlement amount : {fmt(amt)} krw\n"
-                 f"exchange to usdt : {u_val:,.2f} usdt\n"
-                 f"1usdt = {fmt(s_rate)} krw\n\n"
+        s_msg = (f"- {selected_m} settlement amount : {fmt(amt)} krw\n"
+                 f"- exchange to usdt : {u_val:,.2f} usdt\n"
+                 f"- 1usdt = {fmt(s_rate)} krw\n\n"
                  f"{m_info['wallet']}\n\n"
                  f"Please confirm the address and calculation.\n"
                  f"Once approved, we will proceed immediately")
@@ -592,6 +590,7 @@ elif st.session_state.page == 'topup':
     )
     st.markdown(topup_html, unsafe_allow_html=True)
 
+
     section_header("01", "TOP-UP 탑업", "#2ecc71", "46,204,113")
 
     t_row1_col1, t_row1_col2 = st.columns(2)
@@ -599,27 +598,43 @@ elif st.session_state.page == 'topup':
         if st.session_state.get("t_b", "") == "" and live_price > 0:
             st.session_state["t_b"] = str(live_price)
         tb_val = extract_int(st.text_input("탑업 시세(빗썸)", key="t_b"))
-    with t_row1_col2: tu_amt = extract_int(st.text_input("수량(USDT)", key="t_u"))
+    with t_row1_col2:
+        ts_val = extract_int(st.text_input("수동 환율", key="t_s"))
 
-    t_row2_col1, t_row2_col2 = st.columns(2)
-    with t_row2_col1: ts_val = extract_int(st.text_input("수동 환율", key="t_s"))
-    with t_row2_col2:
-        t_rate = ts_val if ts_val > 0 else (tb_val - math.ceil(tb_val * 0.005) if tb_val > 0 else 0)
-        if t_rate > 0:
-            st.markdown(
-                f"<div style='padding-top:32px; font-family:Space Mono,monospace; "
-                f"color:#5dade2; font-size:0.95em; letter-spacing:0.04em;'>"
-                f"1usdt = {fmt(t_rate)} krw</div>",
-                unsafe_allow_html=True
-            )
+    t_rate = ts_val if ts_val > 0 else (tb_val - math.ceil(tb_val * 0.005) if tb_val > 0 else 0)
+    if t_rate > 0:
+        st.markdown(
+            f"<div style='font-family:Space Mono,monospace; "
+            f"color:#5dade2; font-size:0.95em; letter-spacing:0.04em; margin-bottom:12px;'>"
+            f"▸ 적용 환율 &nbsp; 1usdt = {fmt(t_rate)} krw</div>",
+            unsafe_allow_html=True
+        )
+
+    # ── 입력 방식 토글 ──────────────────────────────────
+    t_mode = st.radio("", ["USDT 수량으로 입력", "KRW 금액으로 입력"],
+                      horizontal=True, label_visibility="collapsed", key="t_mode")
+
+    if t_mode == "USDT 수량으로 입력":
+        tu_amt_raw = extract_int(st.text_input("수량 (USDT)", key="t_u"))
+        if t_rate > 0 and tu_amt_raw > 0:
+            tu_amt = tu_amt_raw
+            total_t_krw = tu_amt * t_rate
+        else:
+            tu_amt = 0; total_t_krw = 0
+    else:
+        tu_krw_raw = extract_int(st.text_input("금액 (KRW)", key="t_k"))
+        if t_rate > 0 and tu_krw_raw > 0:
+            total_t_krw = tu_krw_raw
+            tu_amt = round(tu_krw_raw / t_rate, 2)
+        else:
+            tu_amt = 0; total_t_krw = 0
 
     if tu_amt > 0 and t_rate > 0:
-        total_t_krw = tu_amt * t_rate
         my_w = st.session_state.db.get('my_wallet', '')
-        # [수정] 탑업 안내멘트 형식 변경
-        t_msg = (f"mid : {selected_m}\n"
-                 f"top-up usdt : {fmt(tu_amt)} usdt\n"
-                 f"exchange to krw : {fmt(total_t_krw)} krw\n"
+        t_msg = (f"top-up\n\n"
+                 f"mid : {selected_m}\n"
+                 f"top-up amount : {fmt(int(tu_amt))} usdt\n"
+                 f"exchange to KRW : {fmt(int(total_t_krw))} krw\n"
                  f"1usdt = {fmt(t_rate)} krw\n\n"
                  f"{my_w}\n\n"
                  f"Please check the invoice and transfer the USDT to the address provided.")
@@ -627,9 +642,10 @@ elif st.session_state.page == 'topup':
 
         m_fee_t = float(m_info.get('fee', 0.5))
         base_p = ts_val if ts_val > 0 else tb_val
-        t_markup = math.ceil((tu_amt * base_p) * (m_fee_t / 100))
-        f_msg = f"드래곤 테더탑업 마크업 {m_fee_t}% {selected_m} / {fmt(tu_amt * base_p)} / {fmt(t_markup)}"
+        t_markup = math.ceil((int(tu_amt) * base_p) * (m_fee_t / 100))
+        f_msg = f"드래곤 테더탑업 마크업 {m_fee_t}% {selected_m} / {fmt(int(tu_amt) * base_p)} / {fmt(t_markup)}"
         editable_box(f_msg, "yellow", "res_06_fee")
+
 
 # ══════════════════════════════════════════════════════════
 # 관리자 페이지
@@ -728,7 +744,7 @@ elif st.session_state.page == 'admin':
     for name in sorted(st.session_state.db['merchants'].keys()):
         with st.expander(f"📦 {name} 관리"):
             info = st.session_state.db['merchants'][name]
-            u_w = st.text_input("지갑주소",           value=info['wallet'],          key=f"w_{name}")
+            u_w = st.text_input("지갑주소",          value=info['wallet'],          key=f"w_{name}")
             u_f = st.text_input("마크업 수수료 (%)", value=info['fee'],             key=f"f_{name}")
             u_n = st.text_input("비고",              value=info.get('note', ''),   key=f"n_{name}")
             col_save, col_del = st.columns([3, 1])
