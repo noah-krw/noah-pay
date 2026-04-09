@@ -334,7 +334,23 @@ elif st.session_state.page == 'topup':
                                         placeholder="구글에서 확인한 테더 시세를 입력하세요"))
     tb_val = live_price  # 참고용
 
-    t_rate = ts_val if ts_val > 0 else 0
+    if ts_val > 0:
+        rate_pct  = math.floor(ts_val * (1 - 0.005))  # -0.5%
+        rate_flat = ts_val - 5                         # -5원
+        st.markdown(
+            f"<div style='display:flex;gap:12px;margin:10px 0;font-family:Space Mono,monospace;font-size:0.9em;'>"
+            f"<div style='padding:8px 16px;background:rgba(93,173,226,0.08);border:1px solid rgba(93,173,226,0.4);border-radius:8px;color:#5dade2;'>"
+            f"방식 1 (-0.5%) &nbsp; <b>{fmt(rate_pct)} krw</b></div>"
+            f"<div style='padding:8px 16px;background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.4);border-radius:8px;color:#2ecc71;'>"
+            f"방식 2 (-5원) &nbsp; <b>{fmt(rate_flat)} krw</b></div>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+        t_mode_rate = st.radio("", [f"방식 1 (-0.5%) : {fmt(rate_pct)} krw", f"방식 2 (-5원) : {fmt(rate_flat)} krw"],
+                               horizontal=True, label_visibility="collapsed", key="t_rate_mode")
+        t_rate = rate_pct if "방식 1" in t_mode_rate else rate_flat
+    else:
+        t_rate = 0
     if t_rate > 0:
         st.markdown(f"<div style='font-family:Space Mono,monospace;color:#5dade2;font-size:0.95em;"
                     f"margin-bottom:12px;padding:8px 14px;background:rgba(93,173,226,0.07);border-radius:6px;'>"
