@@ -335,14 +335,15 @@ elif st.session_state.page == 'topup':
     """, unsafe_allow_html=True)
     section_header("01", "TOP-UP 탑업", "#2ecc71", "46,204,113")
 
-    notice_msg = ("merchant top-up notice\n\n"
-                  "@ Please let us know the amount when request top-up.\n"
-                  "@ Please send USDT as soon as possible after top up approval.\n"
-                  "  If processing is delayed, provided exchange rate may change\n"
-                  "  based on the real-time exchange rate again.\n"
-                  "@ After top-up approval cannot be cancelled.\n\n"
-                  "thank you.")
-    editable_box(notice_msg, "sky", "res_notice")
+    with st.expander("📋 신규 업체 탑업 안내 (클릭하여 펼치기)"):
+        notice_msg = ("merchant top-up notice\n\n"
+                      "@ Please let us know the amount when request top-up.\n"
+                      "@ Please send USDT as soon as possible after top up approval.\n"
+                      "  If processing is delayed, provided exchange rate may change\n"
+                      "  based on the real-time exchange rate again.\n"
+                      "@ After top-up approval cannot be cancelled.\n\n"
+                      "thank you.")
+        editable_box(notice_msg, "sky", "res_notice")
     ts_val = extract_int(st.text_input("구글 테더 시세 입력 (KRW)", key="t_s",
                                         placeholder="구글에서 확인한 테더 시세를 입력하세요"))
     tb_val = live_price  # 참고용
