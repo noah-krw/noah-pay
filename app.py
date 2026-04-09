@@ -28,17 +28,25 @@ def load_data():
 def save_data(data):
     """GitHub에 merchants.json 저장"""
     try:
-        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+        headers = {"Authorization": f"token {GITHUB_TOKEN}",
+                   "Accept": "application/vnd.github+json"}
         # 현재 파일 SHA 가져오기 (업데이트에 필요)
         r = requests.get(GITHUB_API, headers=headers, timeout=5)
-        sha = r.json().get("sha", "") if r.status_code == 200 else ""
+        if r.status_code != 200:
+            st.error(f"GitHub 읽기 실패: {r.status_code} {r.text}")
+            return
+        sha = r.json().get("sha", "")
         content = base64.b64encode(json.dumps(data, indent=4, ensure_ascii=False).encode()).decode()
         payload = {
             "message": "Update merchants.json via Streamlit",
             "content": content,
             "sha": sha
         }
-        requests.put(GITHUB_API, headers=headers, json=payload, timeout=5)
+        res = requests.put(GITHUB_API, headers=headers, json=payload, timeout=5)
+        if res.status_code in [200, 201]:
+            st.toast("GitHub에 저장 완료 ✅")
+        else:
+            st.error(f"GitHub 저장 실패: {res.status_code} {res.text}")
     except Exception as e:
         st.error(f"저장 실패: {e}")
 
