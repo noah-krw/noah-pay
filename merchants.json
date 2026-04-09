@@ -3,8 +3,13 @@
     "merchants": {
         "spfxm": {
             "wallet": "TWbFbzW5GRkAkVrY4fLuXhNA576DCkoGbh",
-            "fee": "4",
+            "fee": "0",
             "note": "메인 업체"
+        },
+        "ㅁㅁㅁ": {
+            "wallet": "",
+            "fee": "0.5",
+            "note": ""
         }
     }
 }
