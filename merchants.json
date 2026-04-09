@@ -10,6 +10,11 @@
             "wallet": "",
             "fee": "0",
             "note": ""
+        },
+        "drbetssen": {
+            "wallet": "TXSCh2q3NEtKjAVBjRkYJVQU34AkX3ePSu",
+            "fee": "0.5",
+            "note": ""
         }
     }
 }
