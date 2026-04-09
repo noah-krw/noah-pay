@@ -349,20 +349,20 @@ elif st.session_state.page == 'topup':
     tb_val = live_price  # 참고용
 
     if ts_val > 0:
-        rate_pct  = math.floor(ts_val * (1 - 0.005))  # -0.5%
-        rate_flat = ts_val - 5                         # -5원
+        rate_05 = math.floor(ts_val * (1 - 0.005))  # -0.5%
+        rate_1  = math.floor(ts_val * (1 - 0.01))   # -1%
         st.markdown(
             f"<div style='display:flex;gap:12px;margin:10px 0;font-family:Space Mono,monospace;font-size:0.9em;'>"
             f"<div style='padding:8px 16px;background:rgba(93,173,226,0.08);border:1px solid rgba(93,173,226,0.4);border-radius:8px;color:#5dade2;'>"
-            f"방식 1 (-0.5%) &nbsp; <b>{fmt(rate_pct)} krw</b></div>"
+            f"-0.5% &nbsp; <b>{fmt(rate_05)} krw</b></div>"
             f"<div style='padding:8px 16px;background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.4);border-radius:8px;color:#2ecc71;'>"
-            f"방식 2 (-5원) &nbsp; <b>{fmt(rate_flat)} krw</b></div>"
+            f"-1% &nbsp; <b>{fmt(rate_1)} krw</b></div>"
             f"</div>",
             unsafe_allow_html=True
         )
-        t_mode_rate = st.radio("", [f"방식 1 (-0.5%) : {fmt(rate_pct)} krw", f"방식 2 (-5원) : {fmt(rate_flat)} krw"],
+        t_mode_rate = st.radio("", [f"-0.5% : {fmt(rate_05)} krw", f"-1% : {fmt(rate_1)} krw"],
                                horizontal=True, label_visibility="collapsed", key="t_rate_mode")
-        t_rate = rate_pct if "방식 1" in t_mode_rate else rate_flat
+        t_rate = rate_05 if "-0.5%" in t_mode_rate else rate_1
     else:
         t_rate = 0
     if t_rate > 0:
