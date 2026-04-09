@@ -332,7 +332,11 @@ elif st.session_state.page == 'topup':
         "<a href='https://search.naver.com/search.naver?query=%EB%B9%97%EC%8D%B8+%ED%85%8C%EB%8D%94+%EC%8B%9C%EC%84%B8' "
         "target='_blank' style='font-family:Space Mono,monospace;font-size:0.85em;font-weight:700;"
         "color:#2ecc71;border:1px solid rgba(46,204,113,0.5);border-radius:8px;padding:10px 20px;"
-        "text-decoration:none;background:rgba(46,204,113,0.08);'>김프 확인</a></div>"
+        "text-decoration:none;background:rgba(46,204,113,0.08);'>김프 확인</a>"
+        "<a href='https://www.google.com/search?q=테더+원화+시세&hl=ko&gl=KR' "
+        "target='_blank' style='font-family:Space Mono,monospace;font-size:0.85em;font-weight:700;"
+        "color:#f39c12;border:1px solid rgba(243,156,18,0.5);border-radius:8px;padding:10px 20px;"
+        "text-decoration:none;background:rgba(243,156,18,0.08);margin-left:8px;'>구글 시세</a></div>"
     )
     st.markdown(topup_html, unsafe_allow_html=True)
 
