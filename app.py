@@ -330,6 +330,15 @@ elif st.session_state.page == 'topup':
     </div>
     """, unsafe_allow_html=True)
     section_header("01", "TOP-UP 탑업", "#2ecc71", "46,204,113")
+
+    notice_msg = ("merchant top-up notice\n\n"
+                  "@ Please let us know the amount when request top-up.\n"
+                  "@ Please send USDT as soon as possible after top up approval.\n"
+                  "  If processing is delayed, provided exchange rate may change\n"
+                  "  based on the real-time exchange rate again.\n"
+                  "@ After top-up approval cannot be cancelled.\n\n"
+                  "thank you.")
+    editable_box(notice_msg, "sky", "res_notice")
     ts_val = extract_int(st.text_input("구글 테더 시세 입력 (KRW)", key="t_s",
                                         placeholder="구글에서 확인한 테더 시세를 입력하세요"))
     tb_val = live_price  # 참고용
@@ -376,6 +385,7 @@ elif st.session_state.page == 'topup':
                  f"exchange to krw : {fmt(int(total_t_krw))} krw\n1usdt = {fmt(t_rate)} krw\n\n"
                  f"{my_w}\n\nPlease check the invoice and transfer the USDT to the address provided.")
         editable_box(t_msg, "green", "res_06_req")
+
         m_fee_t = float(m_info.get('fee', 0.5))
         base_p = ts_val if ts_val > 0 else tb_val
         t_markup = math.ceil((int(tu_amt) * base_p) * (m_fee_t / 100))
