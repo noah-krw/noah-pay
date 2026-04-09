@@ -16,7 +16,11 @@ def load_data():
         r = requests.get(GITHUB_API, headers=headers, timeout=5)
         if r.status_code == 200:
             content = base64.b64decode(r.json()["content"]).decode("utf-8")
-            return json.loads(content)
+            data = json.loads(content)
+            # 구조 검증 - merchants 키 없으면 기본 구조로 감싸기
+            if "merchants" not in data:
+                return {"my_wallet": data.get("my_wallet", ""), "merchants": data}
+            return data
     except:
         pass
     return get_default_data()
