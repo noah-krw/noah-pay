@@ -316,39 +316,25 @@ elif st.session_state.page == 'topup':
     kst = datetime.timezone(datetime.timedelta(hours=9))
     fetched_time = datetime.datetime.fromtimestamp(st.session_state.get("bithumb_ts", time.time()), tz=kst).strftime("%H:%M:%S")
     bithumb_str = ("&#8361; " + fmt(live_price)) if live_price > 0 else "&mdash;"
-    topup_html = (
-        "<style>@keyframes blink2{0%,100%{opacity:1;}50%{opacity:0.15;}}</style>"
-        "<div style='padding:14px 22px;margin-bottom:14px;background:linear-gradient(135deg,#030f1c,#041810);"
-        "border:1px solid rgba(93,173,226,0.3);border-radius:10px;display:flex;align-items:center;justify-content:space-between;'>"
-        "<div style='display:flex;align-items:center;gap:8px;'>"
-        "<span style='display:inline-block;width:7px;height:7px;border-radius:50%;background:#2ecc71;"
-        "box-shadow:0 0 7px #2ecc71;animation:blink2 1.5s infinite;'></span>"
-        "<span style='font-family:Space Mono,monospace;font-size:0.68em;color:#5dade2;'>BITHUMB &nbsp; USDT / KRW</span>"
-        "</div>"
-        "<div style='display:flex;flex-direction:column;align-items:center;gap:3px;'>"
-        "<div style='font-family:Space Mono,monospace;font-size:1.8em;font-weight:700;color:#ffffff;'>" + bithumb_str + "</div>"
-        "<div style='font-family:Space Mono,monospace;font-size:0.68em;color:#5dade2;'>" + fetched_time + "</div>"
-        "</div>"
-        "<a href='https://search.naver.com/search.naver?query=%EB%B9%97%EC%8D%B8+%ED%85%8C%EB%8D%94+%EC%8B%9C%EC%84%B8' "
-        "target='_blank' style='font-family:Space Mono,monospace;font-size:0.85em;font-weight:700;"
-        "color:#2ecc71;border:1px solid rgba(46,204,113,0.5);border-radius:8px;padding:10px 20px;"
-        "text-decoration:none;background:rgba(46,204,113,0.08);'>김프 확인</a>"
-        "<a href='https://www.google.com/search?q=테더+원화+시세&hl=ko&gl=KR' "
-        "target='_blank' style='font-family:Space Mono,monospace;font-size:0.85em;font-weight:700;"
-        "color:#f39c12;border:1px solid rgba(243,156,18,0.5);border-radius:8px;padding:10px 20px;"
-        "text-decoration:none;background:rgba(243,156,18,0.08);margin-left:8px;'>구글 시세</a></div>"
-    )
-    st.markdown(topup_html, unsafe_allow_html=True)
-
+    st.markdown("""
+    <div style='display:flex;align-items:center;gap:12px;margin-bottom:12px;'>
+        <a href='https://www.google.com/search?q=테더+원화+시세&hl=ko&gl=KR'
+           target='_blank' style='font-family:Space Mono,monospace;font-size:0.85em;font-weight:700;
+           color:#f39c12;border:1px solid rgba(243,156,18,0.5);border-radius:8px;padding:10px 24px;
+           text-decoration:none;background:rgba(243,156,18,0.08);'>🔍 구글 시세 확인</a>
+    </div>
+    <div style='padding:10px 16px;background:rgba(243,156,18,0.08);
+        border-left:3px solid #f39c12;border-radius:6px;
+        font-family:Noto Sans KR,sans-serif;font-size:0.88em;color:#f8c471;'>
+        ⚠️ 탑업은 <b>구글 테더 시세</b> 기준으로 진행합니다. 위 버튼을 확인 후 아래에 입력하세요.
+    </div>
+    """, unsafe_allow_html=True)
     section_header("01", "TOP-UP 탑업", "#2ecc71", "46,204,113")
-    t_row1_col1, t_row1_col2 = st.columns(2)
-    with t_row1_col1:
-        if st.session_state.get("t_b", "") == "" and live_price > 0:
-            st.session_state["t_b"] = str(live_price)
-        tb_val = extract_int(st.text_input("탑업 시세(빗썸)", key="t_b"))
-    with t_row1_col2: ts_val = extract_int(st.text_input("수동 환율", key="t_s"))
+    ts_val = extract_int(st.text_input("구글 테더 시세 입력 (KRW)", key="t_s",
+                                        placeholder="구글에서 확인한 테더 시세를 입력하세요"))
+    tb_val = live_price  # 참고용
 
-    t_rate = ts_val if ts_val > 0 else (tb_val - math.ceil(tb_val * 0.005) if tb_val > 0 else 0)
+    t_rate = ts_val if ts_val > 0 else 0
     if t_rate > 0:
         st.markdown(f"<div style='font-family:Space Mono,monospace;color:#5dade2;font-size:0.95em;"
                     f"margin-bottom:12px;padding:8px 14px;background:rgba(93,173,226,0.07);border-radius:6px;'>"
