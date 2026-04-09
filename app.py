@@ -430,14 +430,15 @@ elif st.session_state.page == 'admin':
         <span style="font-family:'Space Mono',monospace;font-size:0.75em;font-weight:700;color:#a855f7;opacity:0.7;">NEW</span>
         <span style="font-family:'Noto Sans KR',sans-serif;font-size:0.92em;font-weight:700;color:#d0dff0;text-transform:uppercase;">업체 추가</span>
     </div>""", unsafe_allow_html=True)
-    with st.form("new_merchant"):
-        n_name   = st.text_input("업체명")
-        n_wallet = st.text_input("지갑주소")
-        n_fee    = st.text_input("마크업 수수료 (%)", value="0.5")
-        n_note   = st.text_input("비고")
-        if st.form_submit_button("등록", use_container_width=True):
+    n_name   = st.text_input("업체명", key="n_name")
+    n_wallet = st.text_input("지갑주소", key="n_wallet")
+    n_fee    = st.text_input("마크업 수수료 (%)", value="0.5", key="n_fee")
+    n_note   = st.text_input("비고", key="n_note")
+    if st.button("등록", use_container_width=True, key="btn_register"):
+        if n_name:
             st.session_state.db['merchants'][n_name] = {"wallet": n_wallet, "fee": n_fee, "note": n_note}
-            save_data(st.session_state.db); st.toast(f"{n_name} 업체 등록됨 ✅"); st.rerun()
+            save_data(st.session_state.db)
+            st.rerun()
 
     st.markdown("""
     <div style="margin-top:32px;margin-bottom:14px;display:flex;align-items:center;gap:12px;
