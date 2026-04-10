@@ -406,11 +406,14 @@ elif st.session_state.page == 'topup':
                  f"{my_w}\n\nPlease check the invoice and transfer the USDT to the address provided.")
         editable_box(t_msg, "green", "res_06_req")
 
-        m_fee_t = float(m_info.get('fee', 0.5))
-        base_p = ts_val if ts_val > 0 else tb_val
-        t_markup = math.ceil((int(tu_amt) * base_p) * (m_fee_t / 100))
-        f_msg = f"{selected_m} 탑업 수수료 / {fmt(int(tu_amt) * base_p)} / {m_fee_t}% / {fmt(t_markup)}"
-        editable_box(f_msg, "yellow", "res_06_fee")
+        # 잔액 보고
+        bal_after = extract_int(st.text_input("탑업 후 잔액 입력 (KRW)", key="t_bal",
+                                               placeholder="탑업 완료 후 머천트 잔액을 입력하세요"))
+        if bal_after > 0:
+            bal_msg = (f"Top-up completed\n\n"
+                       f"Balance update\n\n"
+                       f"- {selected_m} : {fmt(bal_after)} krw")
+            editable_box(bal_msg, "blue", "res_06_bal")
 
 # ══════════════════════════════════════════════════════════
 # 관리자 페이지
