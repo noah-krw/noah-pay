@@ -370,9 +370,14 @@ elif st.session_state.page == 'topup':
             f"</div>",
             unsafe_allow_html=True
         )
-        t_mode_rate = st.radio("", [f"-0.5% : {fmt(rate_05)} krw", f"-1% : {fmt(rate_1)} krw"],
+        t_mode_rate = st.radio("", [f"-0.5% : {fmt(rate_05)} krw", f"-1% : {fmt(rate_1)} krw", "수동 입력"],
                                horizontal=True, label_visibility="collapsed", key="t_rate_mode")
-        t_rate = rate_05 if "-0.5%" in t_mode_rate else rate_1
+        if "수동 입력" in t_mode_rate:
+            t_rate_manual = extract_int(st.text_input("수동 환율 직접 입력 (KRW)", key="t_manual",
+                                                       placeholder="관리자 지정 환율을 입력하세요"))
+            t_rate = t_rate_manual if t_rate_manual > 0 else 0
+        else:
+            t_rate = rate_05 if "-0.5%" in t_mode_rate else rate_1
     else:
         t_rate = 0
     if t_rate > 0:
