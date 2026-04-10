@@ -15,6 +15,11 @@
             "wallet": "TXSCh2q3NEtKjAVBjRkYJVQU34AkX3ePSu",
             "fee": "0.5",
             "note": ""
+        },
+        "dr188": {
+            "wallet": "",
+            "fee": "0.5",
+            "note": ""
         }
     }
 }
