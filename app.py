@@ -403,7 +403,11 @@ elif st.session_state.page == 'topup':
         my_w = st.session_state.db.get('my_wallet', '')
         t_msg = (f"mid : {selected_m}\ntop-up usdt : {fmt(int(tu_amt))} usdt\n"
                  f"exchange to krw : {fmt(int(total_t_krw))} krw\n1usdt = {fmt(t_rate)} krw\n\n"
-                 f"{my_w}\n\nPlease check the invoice and transfer the USDT to the address provided.")
+                 f"{my_w}\n\nPlease check the invoice and transfer the USDT to the address provided.\n\n"
+                 f"⚠️ Please confirm whether you would like to proceed with the top-up.\n"
+                 f"Kindly reply as soon as possible.\n"
+                 f"Note: The exchange rate provided is based on the current market rate\n"
+                 f"and may change if there is a delay in your response.")
         editable_box(t_msg, "green", "res_06_req")
 
         # 잔액 보고
