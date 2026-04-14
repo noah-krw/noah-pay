@@ -529,47 +529,50 @@ elif st.session_state.page == 'commission':
                     break
 
         # ── 결과 표시 ──
-        section_header("02", "탑업 내역", "#2ecc71", "46,204,113")
-        if topup_records:
-            from collections import defaultdict
-            topup_by = defaultdict(list)
-            for r in topup_records:
-                topup_by[r['partner']].append(r)
+        import pandas as pd
+        from collections import defaultdict
 
-            for p in DRAGON_PARTNERS:
-                recs = topup_by.get(p, [])
-                if not recs: continue
-                total_usdt = sum(r['usdt'] for r in recs)
-                total_krw  = sum(r['krw']  for r in recs)
-                fee_usdt   = round(total_usdt * 0.005, 2)
-                st.markdown(f"**▶ {p}**")
-                import pandas as pd
-                df = pd.DataFrame([{'날짜': r['date'], 'USDT': f"{r['usdt']:,}", '환율': r['rate'], 'KRW': f"{r['krw']:,}"} for r in recs])
-                df.loc['합계'] = ['합계', f"{total_usdt:,}", '', f"{total_krw:,}"]
-                st.dataframe(df, use_container_width=True, hide_index=True)
-                fee_krw_from_usdt = round(total_krw * 0.005)
-                st.success(f"수수료 (0.5%) : **{fee_usdt:,.2f} usdt / {fee_krw_from_usdt:,} krw**")
-        else:
-            st.info("탑업 내역 없음")
+        section_header("02", "수수료 내역", "#4a90d9", "74,144,217")
 
-        section_header("03", "업체정산 내역", "#f39c12", "243,156,18")
-        if settle_records:
-            settle_by = defaultdict(list)
-            for r in settle_records:
-                settle_by[r['partner']].append(r)
+        topup_by  = defaultdict(list)
+        settle_by = defaultdict(list)
+        for r in topup_records:  topup_by[r['partner']].append(r)
+        for r in settle_records: settle_by[r['partner']].append(r)
 
-            for p in DRAGON_PARTNERS:
-                recs = settle_by.get(p, [])
-                if not recs: continue
-                total_krw = sum(r['krw'] for r in recs)
-                fee_krw   = round(total_krw * 0.005)
-                st.markdown(f"**▶ {p}**")
-                df = pd.DataFrame([{'날짜': r['date'], '환율': r['rate'], 'KRW': f"{r['krw']:,}"} for r in recs])
-                df.loc['합계'] = ['합계', '', f"{total_krw:,}"]
-                st.dataframe(df, use_container_width=True, hide_index=True)
-                st.success(f"수수료 (0.5%) : **{fee_krw:,} krw**")
-        else:
-            st.info("업체정산 내역 없음")
+        any_data = False
+        for p in DRAGON_PARTNERS:
+            t_recs = topup_by.get(p, [])
+            s_recs = settle_by.get(p, [])
+            if not t_recs and not s_recs: continue
+            any_data = True
+
+            st.markdown(f"### ▶ {p}")
+
+            # 탑업
+            if t_recs:
+                total_usdt = sum(r['usdt'] for r in t_recs)
+                total_krw_t = sum(r['krw'] for r in t_recs)
+                fee_usdt = round(total_usdt * 0.005, 2)
+                df_t = pd.DataFrame([{'날짜': r['date'], 'USDT': f"{r['usdt']:,}", '환율': r['rate'], 'KRW': f"{r['krw']:,}"} for r in t_recs])
+                df_t.loc['합계'] = ['합계', f"{total_usdt:,}", '', f"{total_krw_t:,}"]
+                st.caption("📤 탑업 내역")
+                st.dataframe(df_t, use_container_width=True, hide_index=True)
+                st.success(f"탑업 수수료 (0.5%) : **{fee_usdt:,.2f} usdt**")
+
+            # 정산
+            if s_recs:
+                total_krw_s = sum(r['krw'] for r in s_recs)
+                fee_krw = round(total_krw_s * 0.005)
+                df_s = pd.DataFrame([{'날짜': r['date'], '환율': r['rate'], 'KRW': f"{r['krw']:,}"} for r in s_recs])
+                df_s.loc['합계'] = ['합계', '', f"{total_krw_s:,}"]
+                st.caption("💱 정산 내역")
+                st.dataframe(df_s, use_container_width=True, hide_index=True)
+                st.success(f"정산 수수료 (0.5%) : **{fee_krw:,} krw**")
+
+            st.divider()
+
+        if not any_data:
+            st.info("해당 기간 드래곤 파트너 내역 없음")
 
         # ── 엑셀 생성 ──
         section_header("04", "엑셀 다운로드", "#a855f7", "168,85,247")
