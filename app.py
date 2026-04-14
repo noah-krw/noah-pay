@@ -547,7 +547,8 @@ elif st.session_state.page == 'commission':
                 df = pd.DataFrame([{'날짜': r['date'], 'USDT': f"{r['usdt']:,}", '환율': r['rate'], 'KRW': f"{r['krw']:,}"} for r in recs])
                 df.loc['합계'] = ['합계', f"{total_usdt:,}", '', f"{total_krw:,}"]
                 st.dataframe(df, use_container_width=True, hide_index=True)
-                st.success(f"수수료 (0.5%) : **{fee_usdt:,.2f} usdt**")
+                fee_krw_from_usdt = round(total_krw * 0.005)
+                st.success(f"수수료 (0.5%) : **{fee_usdt:,.2f} usdt / {fee_krw_from_usdt:,} krw**")
         else:
             st.info("탑업 내역 없음")
 
