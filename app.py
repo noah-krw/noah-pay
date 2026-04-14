@@ -558,7 +558,7 @@ elif st.session_state.page == 'commission':
                 st.caption("📤 탑업 내역")
                 st.dataframe(df_t, use_container_width=True, hide_index=True)
                 fee_krw_t = round(total_krw_t * 0.005)
-                st.success(f"탑업 수수료 (0.5%) : **{fee_usdt:,.2f} usdt / {fee_krw_t:,} krw**")
+                st.success(f"수수료 (0.5%) : **{fee_usdt:,.2f} usdt / {fee_krw_t:,} krw**")
 
             # 정산
             if s_recs:
