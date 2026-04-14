@@ -222,6 +222,8 @@ with st.sidebar:
         st.session_state.page = 'admin'; st.rerun()
     if st.button("📊  수수료 정산", use_container_width=True):
         st.session_state.page = 'commission'; st.rerun()
+    if st.button("👤  에이전트 정산", use_container_width=True):
+        st.session_state.page = 'agent'; st.rerun()
     st.divider()
     reset_keys = ["t_b","t_u","t_k","t_s"] if st.session_state.page == "topup" else ["s_b","s_s","s_amt","bal_in","w_in"]
     if st.button("⟳  NEW SESSION", key="reset_inputs", use_container_width=True):
@@ -695,6 +697,219 @@ elif st.session_state.page == 'commission':
             label="📥 엑셀 다운로드",
             data=excel_data,
             file_name=f"드래곤수수료_{period}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+
+# ══════════════════════════════════════════════════════════
+# 에이전트 정산 페이지
+# ══════════════════════════════════════════════════════════
+elif st.session_state.page == 'agent':
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    st.markdown('<div class="main-title">에이전트 정산</div>', unsafe_allow_html=True)
+
+    # 에이전트 설정
+    AGENTS = {
+        'Dean': {
+            'merchants': {
+                'dr188':    {'name': '188',      'dep_rate': 0.001, 'wds_rate': 0.001},
+                'drbetssen':{'name': 'Betssen',  'dep_rate': 0.001, 'wds_rate': 0.001},
+            }
+        },
+        'Tofi': {
+            'merchants': {
+                'spfxm':    {'name': 'XM(forex)', 'dep_rate': 0.002, 'wds_rate': 0.001},
+            }
+        },
+        'Michell': {
+            'merchants': {
+                'v99_BT':   {'name': 'MI,AT,NOX', 'dep_rate': 0.001, 'wds_rate': 0.001},
+            }
+        },
+    }
+
+    def parse_mbd_summary(text):
+        """Merchant By Date Summary 줄에서 입금/출금 합계 추출"""
+        summary_m = re.search(r'Summary([\d,]+)', text)
+        if not summary_m: return 0, 0
+        nums_raw = re.findall(r'[\d,]+', text[text.find('Summary'):])
+        nums = [int(n.replace(',','')) for n in nums_raw if n.replace(',','').isdigit()]
+        if len(nums) >= 2:
+            return nums[0], nums[2] if len(nums) > 2 else 0
+        return 0, 0
+
+    def make_agent_excel(agent_name, results, period):
+        wb = Workbook()
+        hdr_font   = Font(bold=True, color="FFFFFF", name="Arial", size=10)
+        hdr_fill   = PatternFill("solid", start_color="1E3A5F")
+        total_font = Font(bold=True, color="38BDF8", name="Arial", size=10)
+        total_fill = PatternFill("solid", start_color="0F2040")
+        fee_font   = Font(bold=True, color="2ECC71", name="Arial", size=10)
+        fee_fill   = PatternFill("solid", start_color="0A2016")
+        thin       = Side(style="thin", color="334155")
+        border     = Border(left=thin, right=thin, top=thin, bottom=thin)
+        center     = Alignment(horizontal="center", vertical="center")
+        num_fmt    = '#,##0'
+        pct_fmt    = '0.00%'
+
+        ws = wb.active
+        ws.title = f"{agent_name} 정산"
+
+        # 타이틀
+        ws.merge_cells('A1:G1')
+        ws['A1'] = agent_name
+        ws['A1'].font = Font(bold=True, color="FFFFFF", name="Arial", size=14)
+        ws['A1'].fill = PatternFill("solid", start_color="0F2040")
+        ws['A1'].alignment = center
+
+        # 헤더
+        headers = ["", "Deposits", "", "", "Wds", "", "합계"]
+        sub_headers = ["Merchant", "Rate", "KRW", "Amount", "Rate", "KRW", "Amount"]
+        ws.append(headers)
+        ws.append(sub_headers)
+
+        for cell in ws[2]:
+            cell.font = hdr_font; cell.fill = hdr_fill
+            cell.alignment = center; cell.border = border
+        for cell in ws[3]:
+            cell.font = hdr_font; cell.fill = hdr_fill
+            cell.alignment = center; cell.border = border
+
+        total_dep_fee = 0
+        total_wds_fee = 0
+
+        for mid, res in results.items():
+            cfg = AGENTS[agent_name]['merchants'][mid]
+            dep_fee = res['dep_fee']
+            wds_fee = res['wds_fee']
+            total_dep_fee += dep_fee
+            total_wds_fee += wds_fee
+            row = [
+                cfg['name'],
+                cfg['dep_rate'],
+                res['deposits'],
+                dep_fee,
+                cfg['wds_rate'],
+                res['withdrawals'],
+                wds_fee,
+            ]
+            ws.append(row)
+            r = ws.max_row
+            ws.cell(r, 1).font = Font(name="Arial", size=10, bold=True, color="C8D6E5")
+            ws.cell(r, 1).fill = PatternFill("solid", start_color="1A2A3A")
+            for col in range(1, 8):
+                cell = ws.cell(r, col)
+                cell.border = border
+                cell.alignment = center
+                if col in (2, 5): cell.number_format = pct_fmt
+                if col in (3, 4, 6, 7): cell.number_format = num_fmt
+
+        # 합계행
+        ws.append(["합계", "", "", total_dep_fee, "", "", total_wds_fee])
+        r = ws.max_row
+        for col in range(1, 8):
+            cell = ws.cell(r, col)
+            cell.font = total_font; cell.fill = total_fill
+            cell.border = border; cell.alignment = center
+            if col in (4, 7): cell.number_format = num_fmt
+
+        # 최종 수수료
+        grand_total = total_dep_fee + total_wds_fee
+        ws.append(["총 수수료", "", "", "", "", "", grand_total])
+        r = ws.max_row
+        for col in range(1, 8):
+            cell = ws.cell(r, col)
+            cell.font = fee_font; cell.fill = fee_fill
+            cell.border = border; cell.alignment = center
+            if col == 7: cell.number_format = num_fmt
+
+        # 컬럼 너비
+        for col, w in zip('ABCDEFG', [16, 8, 16, 14, 8, 16, 14]):
+            ws.column_dimensions[col].width = w
+
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        return buf.getvalue()
+
+    # ── UI ──
+    selected_agent = st.radio("", list(AGENTS.keys()),
+                               horizontal=True, label_visibility="collapsed", key="agent_sel")
+
+    st.divider()
+    section_header("01", f"{selected_agent} 머천트 입력", "#4a90d9", "74,144,217")
+
+    col_d1, col_d2 = st.columns(2)
+    with col_d1: agent_date_from = st.text_input("시작일 (예: 4/1/2026)", key="agent_from")
+    with col_d2: agent_date_to   = st.text_input("종료일 (예: 4/15/2026)", key="agent_to")
+
+    merchant_inputs = {}
+    for mid, cfg in AGENTS[selected_agent]['merchants'].items():
+        st.text(f"📋 {cfg['name']} ({mid}) 내역")
+        merchant_inputs[mid] = st.text_area(
+            f"{cfg['name']} 붙여넣기",
+            height=120, key=f"agent_{mid}",
+            placeholder="Merchant By Date Statistics 페이지 전체를 붙여넣으세요",
+            label_visibility="collapsed"
+        )
+
+    if st.button("📊 정산 계산", use_container_width=True, key="agent_calc"):
+        st.session_state['agent_results'] = {}
+        for mid, text in merchant_inputs.items():
+            if not text.strip(): continue
+            cfg = AGENTS[selected_agent]['merchants'][mid]
+            # Summary 파싱
+            summary_idx = text.find('Summary')
+            if summary_idx == -1: continue
+            summary_part = text[summary_idx:]
+            nums = [int(n.replace(',','')) for n in re.findall(r'[\d,]+', summary_part) if n.replace(',','').isdigit()]
+            if len(nums) < 3: continue
+            deposits     = nums[0]
+            withdrawals  = nums[2]
+            dep_fee      = round(deposits    * cfg['dep_rate'])
+            wds_fee      = round(withdrawals * cfg['wds_rate'])
+            st.session_state['agent_results'][mid] = {
+                'deposits': deposits, 'withdrawals': withdrawals,
+                'dep_fee': dep_fee,   'wds_fee': wds_fee
+            }
+
+    if st.session_state.get('agent_results'):
+        results = st.session_state['agent_results']
+        section_header("02", "정산 결과", "#2ecc71", "46,204,113")
+
+        total_dep_fee = 0
+        total_wds_fee = 0
+
+        for mid, res in results.items():
+            cfg = AGENTS[selected_agent]['merchants'][mid]
+            st.markdown(f"**▶ {cfg['name']} ({mid})**")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("입금", f"{res['deposits']:,} krw")
+                st.metric(f"입금 수수료 ({cfg['dep_rate']*100}%)", f"{res['dep_fee']:,} krw")
+            with col2:
+                st.metric("출금", f"{res['withdrawals']:,} krw")
+                st.metric(f"출금 수수료 ({cfg['wds_rate']*100}%)", f"{res['wds_fee']:,} krw")
+            with col3:
+                st.metric("합계 수수료", f"{res['dep_fee'] + res['wds_fee']:,} krw")
+            total_dep_fee += res['dep_fee']
+            total_wds_fee += res['wds_fee']
+            st.divider()
+
+        grand_total = total_dep_fee + total_wds_fee
+        st.success(f"**{selected_agent} 총 수수료 : {grand_total:,} krw**")
+
+        # 엑셀 다운로드
+        section_header("03", "엑셀 다운로드", "#a855f7", "168,85,247")
+        period = f"{agent_date_from}~{agent_date_to}".replace('/','') if agent_date_from and agent_date_to else "에이전트정산"
+        excel_data = make_agent_excel(selected_agent, results, period)
+        st.download_button(
+            label="📥 엑셀 다운로드",
+            data=excel_data,
+            file_name=f"{selected_agent}_에이전트정산_{period}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
         )
