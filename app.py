@@ -220,6 +220,8 @@ with st.sidebar:
         st.session_state.page = 'topup'; st.rerun()
     if st.button("⚙️  머천트 관리", use_container_width=True):
         st.session_state.page = 'admin'; st.rerun()
+    if st.button("📊  수수료 정산", use_container_width=True):
+        st.session_state.page = 'commission'; st.rerun()
     st.divider()
     reset_keys = ["t_b","t_u","t_k","t_s"] if st.session_state.page == "topup" else ["s_b","s_s","s_amt","bal_in","w_in"]
     if st.button("⟳  NEW SESSION", key="reset_inputs", use_container_width=True):
@@ -476,3 +478,218 @@ elif st.session_state.page == 'admin':
                 if st.button("삭제", key=f"d_{name}", use_container_width=True):
                     del st.session_state.db['merchants'][name]
                     save_data(st.session_state.db); st.rerun()
+
+# ══════════════════════════════════════════════════════════
+# 수수료 정산 페이지
+# ══════════════════════════════════════════════════════════
+elif st.session_state.page == 'commission':
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    st.markdown('<div class="main-title">수수료 정산</div>', unsafe_allow_html=True)
+
+    DRAGON_PARTNERS = ['dr188', 'drbetssen', 'drSpinmama', 'Dpinnacle']
+
+    section_header("01", "내역 텍스트 입력", "#4a90d9", "74,144,217")
+    raw_commission = st.text_area("📋 장부 텍스트 붙여넣기", height=250, key="comm_raw",
+                                   placeholder="날짜\\t금액\\t환율1\\t환율2\\tUSDT\\t손익\\t메모 형식으로 붙여넣으세요")
+
+    col_d1, col_d2 = st.columns(2)
+    with col_d1: date_from = st.text_input("시작일 (예: 3/18/2026)", key="comm_from")
+    with col_d2: date_to   = st.text_input("종료일 (예: 4/3/2026)",  key="comm_to")
+
+    if raw_commission:
+        topup_records   = []
+        settle_records  = []
+
+        for line in raw_commission.strip().split('\n'):
+            cols = line.split('\t')
+            if len(cols) < 7: continue
+            date = cols[0].strip()
+            memo = cols[6].strip()
+
+            krw_col  = cols[1].strip().replace(',', '')
+            krw_amt  = int(float(krw_col)) if krw_col not in ('무','') else 0
+
+            rate_col = cols[3].strip().replace(',', '')
+            rate_col2= cols[2].strip().replace(',', '')
+            rate     = float(rate_col) if rate_col not in ('무','') else (float(rate_col2) if rate_col2 not in ('무','') else 0)
+
+            usdt_col = cols[4].strip().replace(',', '')
+            usdt_qty = int(float(usdt_col)) if usdt_col not in ('무','') else 0
+
+            for p in DRAGON_PARTNERS:
+                if p.lower() in memo.lower():
+                    if '탑업' in memo:
+                        topup_records.append({'date': date, 'partner': p, 'usdt': usdt_qty, 'krw': krw_amt, 'rate': rate})
+                    elif '업체정산' in memo and '에이전트' not in memo and '게이트' not in memo:
+                        settle_records.append({'date': date, 'partner': p, 'usdt': usdt_qty, 'krw': krw_amt, 'rate': rate})
+                    break
+
+        # ── 결과 표시 ──
+        section_header("02", "탑업 내역", "#2ecc71", "46,204,113")
+        if topup_records:
+            from collections import defaultdict
+            topup_by = defaultdict(list)
+            for r in topup_records:
+                topup_by[r['partner']].append(r)
+
+            for p in DRAGON_PARTNERS:
+                recs = topup_by.get(p, [])
+                if not recs: continue
+                total_usdt = sum(r['usdt'] for r in recs)
+                total_krw  = sum(r['krw']  for r in recs)
+                fee_usdt   = round(total_usdt * 0.005, 2)
+                st.markdown(f"**▶ {p}**")
+                import pandas as pd
+                df = pd.DataFrame([{'날짜': r['date'], 'USDT': f"{r['usdt']:,}", '환율': r['rate'], 'KRW': f"{r['krw']:,}"} for r in recs])
+                df.loc['합계'] = ['합계', f"{total_usdt:,}", '', f"{total_krw:,}"]
+                st.dataframe(df, use_container_width=True, hide_index=True)
+                st.success(f"수수료 (0.5%) : **{fee_usdt:,.2f} usdt**")
+        else:
+            st.info("탑업 내역 없음")
+
+        section_header("03", "업체정산 내역", "#f39c12", "243,156,18")
+        if settle_records:
+            settle_by = defaultdict(list)
+            for r in settle_records:
+                settle_by[r['partner']].append(r)
+
+            for p in DRAGON_PARTNERS:
+                recs = settle_by.get(p, [])
+                if not recs: continue
+                total_krw = sum(r['krw'] for r in recs)
+                fee_krw   = round(total_krw * 0.005)
+                st.markdown(f"**▶ {p}**")
+                df = pd.DataFrame([{'날짜': r['date'], '환율': r['rate'], 'KRW': f"{r['krw']:,}"} for r in recs])
+                df.loc['합계'] = ['합계', '', f"{total_krw:,}"]
+                st.dataframe(df, use_container_width=True, hide_index=True)
+                st.success(f"수수료 (0.5%) : **{fee_krw:,} krw**")
+        else:
+            st.info("업체정산 내역 없음")
+
+        # ── 엑셀 생성 ──
+        section_header("04", "엑셀 다운로드", "#a855f7", "168,85,247")
+
+        def make_excel(topup_records, settle_records):
+            wb = Workbook()
+
+            # 스타일
+            hdr_font    = Font(bold=True, color="FFFFFF", name="Arial", size=10)
+            hdr_fill    = PatternFill("solid", start_color="1E3A5F")
+            sub_fill    = PatternFill("solid", start_color="2E4A7F")
+            total_fill  = PatternFill("solid", start_color="0F2040")
+            total_font  = Font(bold=True, color="38BDF8", name="Arial", size=10)
+            center      = Alignment(horizontal="center", vertical="center")
+            right       = Alignment(horizontal="right",  vertical="center")
+            thin        = Side(style="thin", color="334155")
+            border      = Border(left=thin, right=thin, top=thin, bottom=thin)
+            num_fmt     = '#,##0'
+
+            from collections import defaultdict
+
+            # ── 탑업 시트 ──
+            ws1 = wb.active
+            ws1.title = "탑업 내역"
+            ws1.append(["Date", "Partner", "USDT amount", "Rate", "KRW amount"])
+            for cell in ws1[1]:
+                cell.font = hdr_font; cell.fill = hdr_fill
+                cell.alignment = center; cell.border = border
+
+            topup_by = defaultdict(list)
+            for r in topup_records: topup_by[r['partner']].append(r)
+
+            data_rows = []
+            for p in DRAGON_PARTNERS:
+                for r in topup_by.get(p, []):
+                    ws1.append([r['date'], r['partner'], r['usdt'], r['rate'], r['krw']])
+                    data_rows.append(ws1.max_row)
+
+            # 파트너별 소계
+            for p in DRAGON_PARTNERS:
+                recs = topup_by.get(p, [])
+                if not recs: continue
+                total_u = sum(r['usdt'] for r in recs)
+                total_k = sum(r['krw']  for r in recs)
+                fee_u   = round(total_u * 0.005, 2)
+                ws1.append([f"{p} 소계", "", total_u, "", total_k])
+                row = ws1.max_row
+                for cell in ws1[row]:
+                    cell.font = total_font; cell.fill = total_fill; cell.border = border
+                ws1.append([f"수수료 0.5%", "", fee_u, "", ""])
+                row2 = ws1.max_row
+                for cell in ws1[row2]:
+                    cell.font = Font(bold=True, color="2ECC71", name="Arial", size=10)
+                    cell.fill = PatternFill("solid", start_color="0A2016")
+                    cell.border = border
+
+            # 숫자 포맷
+            for row in ws1.iter_rows(min_row=2):
+                for cell in row:
+                    cell.border = border
+                    if isinstance(cell.value, (int, float)) and cell.column in (3, 5):
+                        cell.number_format = num_fmt
+
+            ws1.column_dimensions['A'].width = 14
+            ws1.column_dimensions['B'].width = 14
+            ws1.column_dimensions['C'].width = 14
+            ws1.column_dimensions['D'].width = 10
+            ws1.column_dimensions['E'].width = 16
+
+            # ── 정산 시트 ──
+            ws2 = wb.create_sheet("업체정산 내역")
+            ws2.append(["Date", "Partner", "Rate", "KRW amount"])
+            for cell in ws2[1]:
+                cell.font = hdr_font; cell.fill = hdr_fill
+                cell.alignment = center; cell.border = border
+
+            settle_by = defaultdict(list)
+            for r in settle_records: settle_by[r['partner']].append(r)
+
+            for p in DRAGON_PARTNERS:
+                for r in settle_by.get(p, []):
+                    ws2.append([r['date'], r['partner'], r['rate'], r['krw']])
+
+            for p in DRAGON_PARTNERS:
+                recs = settle_by.get(p, [])
+                if not recs: continue
+                total_k = sum(r['krw'] for r in recs)
+                fee_k   = round(total_k * 0.005)
+                ws2.append([f"{p} 소계", "", "", total_k])
+                row = ws2.max_row
+                for cell in ws2[row]:
+                    cell.font = total_font; cell.fill = total_fill; cell.border = border
+                ws2.append([f"수수료 0.5%", "", "", fee_k])
+                row2 = ws2.max_row
+                for cell in ws2[row2]:
+                    cell.font = Font(bold=True, color="F39C12", name="Arial", size=10)
+                    cell.fill = PatternFill("solid", start_color="241800")
+                    cell.border = border
+
+            for row in ws2.iter_rows(min_row=2):
+                for cell in row:
+                    cell.border = border
+                    if isinstance(cell.value, (int, float)) and cell.column == 4:
+                        cell.number_format = num_fmt
+
+            ws2.column_dimensions['A'].width = 14
+            ws2.column_dimensions['B'].width = 14
+            ws2.column_dimensions['C'].width = 10
+            ws2.column_dimensions['D'].width = 16
+
+            buf = io.BytesIO()
+            wb.save(buf)
+            buf.seek(0)
+            return buf.getvalue()
+
+        excel_data = make_excel(topup_records, settle_records)
+        period = f"{date_from}~{date_to}".replace('/', '') if date_from and date_to else "수수료정산"
+        st.download_button(
+            label="📥 엑셀 다운로드",
+            data=excel_data,
+            file_name=f"드래곤수수료_{period}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
