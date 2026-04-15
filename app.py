@@ -929,16 +929,48 @@ elif st.session_state.page == 'agent':
                 dep_fee = round(deposits    * cfg['dep_rate'])
                 wds_fee = round(withdrawals * cfg['wds_rate'])
             else:
-                # TL MBD 파싱 (Summary 줄)
-                summary_idx = text.find('Summary')
-                if summary_idx == -1: continue
-                summary_part = text[summary_idx:]
-                nums = [int(n.replace(',','')) for n in re.findall(r'[\d,]+', summary_part) if n.replace(',','').isdigit()]
-                if len(nums) < 3: continue
-                deposits    = nums[0]
-                withdrawals = nums[2]
-                dep_fee     = round(deposits    * cfg['dep_rate'])
-                wds_fee     = round(withdrawals * cfg['wds_rate'])
+                # TL MBD 파싱 - 날짜별 행 파싱 (날짜 필터 적용)
+                deposits = 0
+                withdrawals = 0
+                from datetime import datetime as dt
+                for line in text.strip().split('\n'):
+                    # 날짜 패턴: 줄 끝에 2026-04-01 형식
+                    date_m = re.search(r'(\d{4}-\d{2}-\d{2})\s*$', line.strip())
+                    if not date_m: continue
+                    row_date = date_m.group(1)
+                    # 날짜 필터
+                    include = True
+                    if agent_date_from:
+                        try:
+                            if dt.strptime(row_date, '%Y-%m-%d') < dt.strptime(agent_date_from, '%Y-%m-%d'):
+                                include = False
+                        except: pass
+                    if agent_date_to:
+                        try:
+                            if dt.strptime(row_date, '%Y-%m-%d') > dt.strptime(agent_date_to, '%Y-%m-%d'):
+                                include = False
+                        except: pass
+                    if not include: continue
+                    # 숫자 추출 - 입금(col5), 출금(col8) 위치
+                    nums = [int(n.replace(',','')) for n in re.findall(r'[\d,]+', line) if n.replace(',','').isdigit() and len(n.replace(',','')) > 0]
+                    # TL MBD 컬럼: 번호 상태 머천트 닉네임 입금수수료% 입금 입금수수료 출금수수료% 출금 출금수수료 ... 일자
+                    # 날짜 제거 후 숫자만 추출
+                    clean_line = re.sub(r'\d{4}-\d{2}-\d{2}', '', line)
+                    nums = [int(n.replace(',','')) for n in re.findall(r'[\d,]+', clean_line) if n.replace(',','').isdigit()]
+                    if len(nums) >= 6:
+                        deposits    += nums[4]  # 입금 (5번째 숫자)
+                        withdrawals += nums[6] if len(nums) > 6 else 0  # 출금 (7번째 숫자)
+                # Summary가 없거나 날짜 파싱 실패시 Summary로 폴백
+                if deposits == 0 and withdrawals == 0:
+                    summary_idx = text.find('Summary')
+                    if summary_idx != -1:
+                        summary_part = text[summary_idx:]
+                        nums = [int(n.replace(',','')) for n in re.findall(r'[\d,]+', summary_part) if n.replace(',','').isdigit()]
+                        if len(nums) >= 3:
+                            deposits    = nums[0]
+                            withdrawals = nums[2]
+                dep_fee = round(deposits    * cfg['dep_rate'])
+                wds_fee = round(withdrawals * cfg['wds_rate'])
 
             st.session_state['agent_results'][mid] = {
                 'deposits': deposits, 'withdrawals': withdrawals,
