@@ -843,34 +843,79 @@ elif st.session_state.page == 'agent':
     section_header("01", f"{selected_agent} 머천트 입력", "#4a90d9", "74,144,217")
 
     col_d1, col_d2 = st.columns(2)
-    with col_d1: agent_date_from = st.text_input("시작일 (예: 4/1/2026)", key="agent_from")
-    with col_d2: agent_date_to   = st.text_input("종료일 (예: 4/15/2026)", key="agent_to")
+    date_placeholder = "2026-04-01" if selected_agent == "Michell" else "4/1/2026"
+    with col_d1: agent_date_from = st.text_input(f"시작일 (예: {date_placeholder})", key="agent_from")
+    with col_d2: agent_date_to   = st.text_input(f"종료일 (예: {date_placeholder.replace("01", "15")})", key="agent_to")
 
     merchant_inputs = {}
     for mid, cfg in AGENTS[selected_agent]['merchants'].items():
         st.text(f"📋 {cfg['name']} ({mid}) 내역")
-        merchant_inputs[mid] = st.text_area(
-            f"{cfg['name']} 붙여넣기",
-            height=120, key=f"agent_{mid}",
-            placeholder="Merchant By Date Statistics 페이지 전체를 붙여넣으세요",
-            label_visibility="collapsed"
-        )
+        if selected_agent == 'Michell':
+            merchant_inputs[mid] = st.text_area(
+                f"{cfg['name']} 붙여넣기",
+                height=120, key=f"agent_{mid}",
+                placeholder="ADA 어드민 일일통계 페이지 전체를 붙여넣으세요\n(날짜 필터는 아래 시작일/종료일로 적용됩니다)",
+                label_visibility="collapsed"
+            )
+        else:
+            merchant_inputs[mid] = st.text_area(
+                f"{cfg['name']} 붙여넣기",
+                height=120, key=f"agent_{mid}",
+                placeholder="Merchant By Date Statistics 페이지 전체를 붙여넣으세요",
+                label_visibility="collapsed"
+            )
 
     if st.button("📊 정산 계산", use_container_width=True, key="agent_calc"):
         st.session_state['agent_results'] = {}
+        st.session_state['agent_name'] = selected_agent
         for mid, text in merchant_inputs.items():
             if not text.strip(): continue
             cfg = AGENTS[selected_agent]['merchants'][mid]
-            # Summary 파싱
-            summary_idx = text.find('Summary')
-            if summary_idx == -1: continue
-            summary_part = text[summary_idx:]
-            nums = [int(n.replace(',','')) for n in re.findall(r'[\d,]+', summary_part) if n.replace(',','').isdigit()]
-            if len(nums) < 3: continue
-            deposits     = nums[0]
-            withdrawals  = nums[2]
-            dep_fee      = round(deposits    * cfg['dep_rate'])
-            wds_fee      = round(withdrawals * cfg['wds_rate'])
+
+            if selected_agent == 'Michell':
+                # ADA 어드민 일일통계 파싱 (날짜 필터 적용)
+                deposits = 0
+                withdrawals = 0
+                for line in text.strip().split('\n'):
+                    # 날짜 패턴 감지 (2026-04-01 형식)
+                    date_m = re.match(r'(\d{4}-\d{2}-\d{2})', line.strip())
+                    if not date_m: continue
+                    row_date = date_m.group(1)
+                    # 날짜 필터
+                    if agent_date_from:
+                        try:
+                            from datetime import datetime as dt
+                            d_from = dt.strptime(agent_date_from, '%Y-%m-%d')
+                            d_row  = dt.strptime(row_date, '%Y-%m-%d')
+                            if d_row < d_from: continue
+                        except: pass
+                    if agent_date_to:
+                        try:
+                            from datetime import datetime as dt
+                            d_to  = dt.strptime(agent_date_to, '%Y-%m-%d')
+                            d_row = dt.strptime(row_date, '%Y-%m-%d')
+                            if d_row > d_to: continue
+                        except: pass
+                    # 숫자 추출 (₩ 기호 제거 후)
+                    clean = line.replace('₩', '').replace(',', '')
+                    nums = [int(n) for n in re.findall(r'\d+', clean) if len(n) > 2]
+                    if len(nums) >= 2:
+                        deposits    += nums[0]
+                        withdrawals += nums[2] if len(nums) > 2 else 0
+                dep_fee = round(deposits    * cfg['dep_rate'])
+                wds_fee = round(withdrawals * cfg['wds_rate'])
+            else:
+                # TL MBD 파싱 (Summary 줄)
+                summary_idx = text.find('Summary')
+                if summary_idx == -1: continue
+                summary_part = text[summary_idx:]
+                nums = [int(n.replace(',','')) for n in re.findall(r'[\d,]+', summary_part) if n.replace(',','').isdigit()]
+                if len(nums) < 3: continue
+                deposits    = nums[0]
+                withdrawals = nums[2]
+                dep_fee     = round(deposits    * cfg['dep_rate'])
+                wds_fee     = round(withdrawals * cfg['wds_rate'])
+
             st.session_state['agent_results'][mid] = {
                 'deposits': deposits, 'withdrawals': withdrawals,
                 'dep_fee': dep_fee,   'wds_fee': wds_fee
