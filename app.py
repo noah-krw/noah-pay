@@ -852,12 +852,18 @@ elif st.session_state.page == 'agent':
     section_header("01", f"{selected_agent} 머천트 입력", "#4a90d9", "74,144,217")
 
     col_d1, col_d2 = st.columns(2)
-    with col_d1:
-        agent_date_from_d = st.date_input("시작일", value=None, key="agent_from_d", format="YYYY-MM-DD")
-        agent_date_from = agent_date_from_d.strftime('%Y-%m-%d') if agent_date_from_d else ""
-    with col_d2:
-        agent_date_to_d = st.date_input("종료일", value=None, key="agent_to_d", format="YYYY-MM-DD")
-        agent_date_to = agent_date_to_d.strftime('%Y-%m-%d') if agent_date_to_d else ""
+    if selected_agent == 'Michell':
+        with col_d1:
+            agent_date_from_d = st.date_input("시작일", value=None, key="agent_from_d", format="YYYY-MM-DD")
+            agent_date_from = agent_date_from_d.strftime("%Y-%m-%d") if agent_date_from_d else ""
+        with col_d2:
+            agent_date_to_d = st.date_input("종료일", value=None, key="agent_to_d", format="YYYY-MM-DD")
+            agent_date_to = agent_date_to_d.strftime("%Y-%m-%d") if agent_date_to_d else ""
+    else:
+        with col_d1: agent_date_from = st.text_input("시작일 (예: 04/01)", key="agent_from_t", placeholder="04/01")
+        with col_d2: agent_date_to   = st.text_input("종료일 (예: 04/15)", key="agent_to_t",   placeholder="04/15")
+        if agent_date_from and agent_date_to:
+            st.caption("⚠️ 어드민에서 해당 기간 설정 후 긁어온 데이터를 붙여넣으세요. 날짜는 엑셀 타이틀 표시용입니다.")
 
     merchant_inputs = {}
     for mid, cfg in AGENTS[selected_agent]['merchants'].items():
@@ -929,48 +935,16 @@ elif st.session_state.page == 'agent':
                 dep_fee = round(deposits    * cfg['dep_rate'])
                 wds_fee = round(withdrawals * cfg['wds_rate'])
             else:
-                # TL MBD 파싱 - 날짜별 행 파싱 (날짜 필터 적용)
-                deposits = 0
-                withdrawals = 0
-                from datetime import datetime as dt
-                for line in text.strip().split('\n'):
-                    # 날짜 패턴: 줄 끝에 2026-04-01 형식
-                    date_m = re.search(r'(\d{4}-\d{2}-\d{2})\s*$', line.strip())
-                    if not date_m: continue
-                    row_date = date_m.group(1)
-                    # 날짜 필터
-                    include = True
-                    if agent_date_from:
-                        try:
-                            if dt.strptime(row_date, '%Y-%m-%d') < dt.strptime(agent_date_from, '%Y-%m-%d'):
-                                include = False
-                        except: pass
-                    if agent_date_to:
-                        try:
-                            if dt.strptime(row_date, '%Y-%m-%d') > dt.strptime(agent_date_to, '%Y-%m-%d'):
-                                include = False
-                        except: pass
-                    if not include: continue
-                    # 숫자 추출 - 입금(col5), 출금(col8) 위치
-                    nums = [int(n.replace(',','')) for n in re.findall(r'[\d,]+', line) if n.replace(',','').isdigit() and len(n.replace(',','')) > 0]
-                    # TL MBD 컬럼: 번호 상태 머천트 닉네임 입금수수료% 입금 입금수수료 출금수수료% 출금 출금수수료 ... 일자
-                    # 날짜 제거 후 숫자만 추출
-                    clean_line = re.sub(r'\d{4}-\d{2}-\d{2}', '', line)
-                    nums = [int(n.replace(',','')) for n in re.findall(r'[\d,]+', clean_line) if n.replace(',','').isdigit()]
-                    if len(nums) >= 6:
-                        deposits    += nums[4]  # 입금 (5번째 숫자)
-                        withdrawals += nums[6] if len(nums) > 6 else 0  # 출금 (7번째 숫자)
-                # Summary가 없거나 날짜 파싱 실패시 Summary로 폴백
-                if deposits == 0 and withdrawals == 0:
-                    summary_idx = text.find('Summary')
-                    if summary_idx != -1:
-                        summary_part = text[summary_idx:]
-                        nums = [int(n.replace(',','')) for n in re.findall(r'[\d,]+', summary_part) if n.replace(',','').isdigit()]
-                        if len(nums) >= 3:
-                            deposits    = nums[0]
-                            withdrawals = nums[2]
-                dep_fee = round(deposits    * cfg['dep_rate'])
-                wds_fee = round(withdrawals * cfg['wds_rate'])
+                # TL MBD 파싱 (Summary 줄에서 합계 추출)
+                summary_idx = text.find('Summary')
+                if summary_idx == -1: continue
+                summary_part = text[summary_idx:]
+                nums = [int(n.replace(',','')) for n in re.findall(r'[\d,]+', summary_part) if n.replace(',','').isdigit()]
+                if len(nums) < 3: continue
+                deposits    = nums[0]
+                withdrawals = nums[2]
+                dep_fee     = round(deposits    * cfg['dep_rate'])
+                wds_fee     = round(withdrawals * cfg['wds_rate'])
 
             st.session_state['agent_results'][mid] = {
                 'deposits': deposits, 'withdrawals': withdrawals,
@@ -1005,30 +979,8 @@ elif st.session_state.page == 'agent':
 
         # 엑셀 다운로드
         section_header("03", "엑셀 다운로드", "#a855f7", "168,85,247")
-        # 파일명용 period
         period_file = f"{agent_date_from}~{agent_date_to}".replace('/','') if agent_date_from and agent_date_to else "에이전트정산"
-        # 엑셀 타이틀용 period (04/01~04/15 형식)
-        if agent_date_from and agent_date_to:
-            try:
-                from datetime import datetime as dt
-                d1 = dt.strptime(agent_date_from, "%Y-%m-%d") if "-" in agent_date_from else dt.strptime(agent_date_from, "%m/%d/%Y")
-                d2 = dt.strptime(agent_date_to,   "%Y-%m-%d") if "-" in agent_date_to   else dt.strptime(agent_date_to,   "%m/%d/%Y")
-                period = f"{d1.strftime('%m/%d')}~{d2.strftime('%m/%d')}"
-            except:
-                period = f"{agent_date_from}~{agent_date_to}"
-        else:
-            period = ""
-        # 엑셀 타이틀용 period 재계산
-        if agent_date_from and agent_date_to:
-            try:
-                from datetime import datetime as dt2
-                d1 = dt2.strptime(agent_date_from, "%Y-%m-%d") if "-" in agent_date_from else dt2.strptime(agent_date_from, "%m/%d/%Y")
-                d2 = dt2.strptime(agent_date_to,   "%Y-%m-%d") if "-" in agent_date_to   else dt2.strptime(agent_date_to,   "%m/%d/%Y")
-                period_title = f"{d1.strftime('%m/%d')}~{d2.strftime('%m/%d')}"
-            except:
-                period_title = f"{agent_date_from}~{agent_date_to}"
-        else:
-            period_title = ""
+        period_title = f"{agent_date_from}~{agent_date_to}" if agent_date_from and agent_date_to else ""
         excel_data = make_agent_excel(selected_agent, results, period_title)
         st.download_button(
             label="📥 엑셀 다운로드",
