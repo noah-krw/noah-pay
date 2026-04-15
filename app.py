@@ -873,35 +873,47 @@ elif st.session_state.page == 'agent':
             cfg = AGENTS[selected_agent]['merchants'][mid]
 
             if selected_agent == 'Michell':
-                # ADA 어드민 일일통계 파싱 (날짜 필터 적용)
+                # ADA 어드민 일일통계 파싱
+                # 구조: 날짜 한줄 → 입금 → 입금수수료 → 출금 → 출금수수료 → 게이트 → 에이전트 → 본사순이익
                 deposits = 0
                 withdrawals = 0
-                for line in text.strip().split('\n'):
-                    # 날짜 패턴 감지 (2026-04-01 형식)
-                    date_m = re.match(r'(\d{4}-\d{2}-\d{2})', line.strip())
-                    if not date_m: continue
-                    row_date = date_m.group(1)
-                    # 날짜 필터
-                    if agent_date_from:
-                        try:
-                            from datetime import datetime as dt
-                            d_from = dt.strptime(agent_date_from, '%Y-%m-%d')
-                            d_row  = dt.strptime(row_date, '%Y-%m-%d')
-                            if d_row < d_from: continue
-                        except: pass
-                    if agent_date_to:
-                        try:
-                            from datetime import datetime as dt
-                            d_to  = dt.strptime(agent_date_to, '%Y-%m-%d')
-                            d_row = dt.strptime(row_date, '%Y-%m-%d')
-                            if d_row > d_to: continue
-                        except: pass
-                    # 숫자 추출 (₩ 기호 제거 후)
-                    clean = line.replace('₩', '').replace(',', '')
-                    nums = [int(n) for n in re.findall(r'\d+', clean) if len(n) > 2]
-                    if len(nums) >= 2:
-                        deposits    += nums[0]
-                        withdrawals += nums[2] if len(nums) > 2 else 0
+                from datetime import datetime as dt
+                # 붙여넣기 시 날짜가 헤더에 붙어오는 경우 분리
+                text_clean = re.sub(r'(\d{4}-\d{2}-\d{2})', r'\n\1', text)
+                lines = [l.strip() for l in text_clean.strip().split('\n') if l.strip()]
+                i = 0
+                while i < len(lines):
+                    date_m = re.match(r'(\d{4}-\d{2}-\d{2})', lines[i])
+                    if date_m:
+                        row_date = date_m.group(1)
+                        # 날짜 필터
+                        include = True
+                        if agent_date_from:
+                            try:
+                                if dt.strptime(row_date, '%Y-%m-%d') < dt.strptime(agent_date_from, '%Y-%m-%d'):
+                                    include = False
+                            except: pass
+                        if agent_date_to:
+                            try:
+                                if dt.strptime(row_date, '%Y-%m-%d') > dt.strptime(agent_date_to, '%Y-%m-%d'):
+                                    include = False
+                            except: pass
+                        # 날짜 다음 7개 줄에서 숫자 추출
+                        nums = []
+                        j = i + 1
+                        while j < len(lines) and len(nums) < 7:
+                            clean = lines[j].replace(',', '').replace('₩', '').strip()
+                            if re.match(r'^\d+$', clean):
+                                nums.append(int(clean))
+                            elif re.match(r'\d{4}-\d{2}-\d{2}', lines[j]):
+                                break
+                            j += 1
+                        if include and len(nums) >= 4:
+                            deposits    += nums[0]  # 입금
+                            withdrawals += nums[2]  # 출금
+                        i = j
+                    else:
+                        i += 1
                 dep_fee = round(deposits    * cfg['dep_rate'])
                 wds_fee = round(withdrawals * cfg['wds_rate'])
             else:
