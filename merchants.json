@@ -20,6 +20,11 @@
             "wallet": "",
             "fee": "0.5",
             "note": ""
+        },
+        "에이전트 정산": {
+            "wallet": "TLwfAtvYxkV2VM7VwijUSVRiJMH6T9gkeE",
+            "fee": "0",
+            "note": ""
         }
     }
 }
