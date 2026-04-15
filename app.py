@@ -715,18 +715,18 @@ elif st.session_state.page == 'agent':
     AGENTS = {
         'Dean': {
             'merchants': {
-                'dr188':    {'name': '188',      'dep_rate': 0.001, 'wds_rate': 0.001},
-                'drbetssen':{'name': 'Betssen',  'dep_rate': 0.001, 'wds_rate': 0.001},
+                'dr188':    {'name': 'dr188',     'dep_rate': 0.001, 'wds_rate': 0.001},
+                'drbetssen':{'name': 'drBetssen', 'dep_rate': 0.001, 'wds_rate': 0.001},
             }
         },
         'Tofi': {
             'merchants': {
-                'spfxm':    {'name': 'XM(forex)', 'dep_rate': 0.002, 'wds_rate': 0.001},
+                'spfxm':    {'name': 'spfxm', 'dep_rate': 0.002, 'wds_rate': 0.001},
             }
         },
         'Michell': {
             'merchants': {
-                'v99_BT':   {'name': 'MI,AT,NOX', 'dep_rate': 0.001, 'wds_rate': 0.001},
+                'v99_BT':   {'name': 'v99_BT', 'dep_rate': 0.001, 'wds_rate': 0.001},
             }
         },
     }
@@ -745,18 +745,18 @@ elif st.session_state.page == 'agent':
         wb = Workbook()
         # 스타일
         title_font = Font(bold=True, color="FFFFFF", name="Arial", size=13)
-        title_fill = PatternFill("solid", start_color="0F2040")
+        title_fill = PatternFill("solid", start_color="4A7AB5")
         hdr1_font  = Font(bold=True, color="FFFFFF", name="Arial", size=10)
-        hdr1_fill  = PatternFill("solid", start_color="1E3A5F")
-        hdr2_font  = Font(bold=True, color="C8D6E5", name="Arial", size=10)
-        hdr2_fill  = PatternFill("solid", start_color="162840")
-        data_font  = Font(name="Arial", size=10, color="E2E8F0")
-        data_fill  = PatternFill("solid", start_color="0D1B2E")
-        total_font = Font(bold=True, color="38BDF8", name="Arial", size=10)
-        total_fill = PatternFill("solid", start_color="0F2040")
-        fee_font   = Font(bold=True, color="2ECC71", name="Arial", size=10)
-        fee_fill   = PatternFill("solid", start_color="0A1F0F")
-        thin       = Side(style="thin", color="1E3A5F")
+        hdr1_fill  = PatternFill("solid", start_color="6A9FD4")
+        hdr2_font  = Font(bold=True, color="2C3E50", name="Arial", size=10)
+        hdr2_fill  = PatternFill("solid", start_color="BDD7EE")
+        data_font  = Font(name="Arial", size=10, color="2C3E50")
+        data_fill  = PatternFill("solid", start_color="FFFFFF")
+        total_font = Font(bold=True, color="1A4A7A", name="Arial", size=10)
+        total_fill = PatternFill("solid", start_color="DDEEFF")
+        fee_font   = Font(bold=True, color="1A6B1A", name="Arial", size=10)
+        fee_fill   = PatternFill("solid", start_color="C6EFCE")
+        thin       = Side(style="thin", color="9DC3E6")
         border     = Border(left=thin, right=thin, top=thin, bottom=thin)
         center     = Alignment(horizontal="center", vertical="center")
         right      = Alignment(horizontal="right", vertical="center")
@@ -778,6 +778,8 @@ elif st.session_state.page == 'agent':
         for cell in ws[2]:
             cell.font = hdr1_font; cell.fill = hdr1_fill
             cell.alignment = center; cell.border = border
+        ws.merge_cells('B2:D2')
+        ws.merge_cells('E2:F2')
 
         # 행3: 소헤더
         ws.append(["Merchant", "Rate", "KRW", "Amount", "Rate", "KRW", "Amount"])
@@ -850,9 +852,12 @@ elif st.session_state.page == 'agent':
     section_header("01", f"{selected_agent} 머천트 입력", "#4a90d9", "74,144,217")
 
     col_d1, col_d2 = st.columns(2)
-    date_placeholder = "2026-04-01" if selected_agent == "Michell" else "4/1/2026"
-    with col_d1: agent_date_from = st.text_input(f"시작일 (예: {date_placeholder})", key="agent_from")
-    with col_d2: agent_date_to   = st.text_input(f"종료일 (예: {date_placeholder.replace("01", "15")})", key="agent_to")
+    with col_d1:
+        agent_date_from_d = st.date_input("시작일", value=None, key="agent_from_d", format="YYYY-MM-DD")
+        agent_date_from = agent_date_from_d.strftime('%Y-%m-%d') if agent_date_from_d else ""
+    with col_d2:
+        agent_date_to_d = st.date_input("종료일", value=None, key="agent_to_d", format="YYYY-MM-DD")
+        agent_date_to = agent_date_to_d.strftime('%Y-%m-%d') if agent_date_to_d else ""
 
     merchant_inputs = {}
     for mid, cfg in AGENTS[selected_agent]['merchants'].items():
