@@ -852,18 +852,14 @@ elif st.session_state.page == 'agent':
     section_header("01", f"{selected_agent} 머천트 입력", "#4a90d9", "74,144,217")
 
     col_d1, col_d2 = st.columns(2)
-    if selected_agent == 'Michell':
-        with col_d1:
-            agent_date_from_d = st.date_input("시작일", value=None, key="agent_from_d", format="YYYY-MM-DD")
-            agent_date_from = agent_date_from_d.strftime("%Y-%m-%d") if agent_date_from_d else ""
-        with col_d2:
-            agent_date_to_d = st.date_input("종료일", value=None, key="agent_to_d", format="YYYY-MM-DD")
-            agent_date_to = agent_date_to_d.strftime("%Y-%m-%d") if agent_date_to_d else ""
-    else:
-        with col_d1: agent_date_from = st.text_input("시작일 (예: 04/01)", key="agent_from_t", placeholder="04/01")
-        with col_d2: agent_date_to   = st.text_input("종료일 (예: 04/15)", key="agent_to_t",   placeholder="04/15")
-        if agent_date_from and agent_date_to:
-            st.caption("⚠️ 어드민에서 해당 기간 설정 후 긁어온 데이터를 붙여넣으세요. 날짜는 엑셀 타이틀 표시용입니다.")
+    with col_d1:
+        agent_date_from_d = st.date_input("시작일", value=None, key="agent_from_d", format="YYYY-MM-DD")
+        agent_date_from = agent_date_from_d.strftime("%Y-%m-%d") if agent_date_from_d else ""
+    with col_d2:
+        agent_date_to_d = st.date_input("종료일", value=None, key="agent_to_d", format="YYYY-MM-DD")
+        agent_date_to = agent_date_to_d.strftime("%Y-%m-%d") if agent_date_to_d else ""
+    if selected_agent != 'Michell' and agent_date_from and agent_date_to:
+        st.caption("⚠️ 어드민에서 해당 기간 설정 후 긁어온 데이터를 붙여넣으세요. 날짜는 엑셀 타이틀 표시용입니다.")
 
     merchant_inputs = {}
     for mid, cfg in AGENTS[selected_agent]['merchants'].items():
