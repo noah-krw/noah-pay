@@ -743,39 +743,46 @@ elif st.session_state.page == 'agent':
 
     def make_agent_excel(agent_name, results, period):
         wb = Workbook()
-        hdr_font   = Font(bold=True, color="FFFFFF", name="Arial", size=10)
-        hdr_fill   = PatternFill("solid", start_color="1E3A5F")
+        # 스타일
+        title_font = Font(bold=True, color="FFFFFF", name="Arial", size=13)
+        title_fill = PatternFill("solid", start_color="0F2040")
+        hdr1_font  = Font(bold=True, color="FFFFFF", name="Arial", size=10)
+        hdr1_fill  = PatternFill("solid", start_color="1E3A5F")
+        hdr2_font  = Font(bold=True, color="C8D6E5", name="Arial", size=10)
+        hdr2_fill  = PatternFill("solid", start_color="162840")
+        data_font  = Font(name="Arial", size=10, color="E2E8F0")
+        data_fill  = PatternFill("solid", start_color="0D1B2E")
         total_font = Font(bold=True, color="38BDF8", name="Arial", size=10)
         total_fill = PatternFill("solid", start_color="0F2040")
         fee_font   = Font(bold=True, color="2ECC71", name="Arial", size=10)
-        fee_fill   = PatternFill("solid", start_color="0A2016")
-        thin       = Side(style="thin", color="334155")
+        fee_fill   = PatternFill("solid", start_color="0A1F0F")
+        thin       = Side(style="thin", color="1E3A5F")
         border     = Border(left=thin, right=thin, top=thin, bottom=thin)
         center     = Alignment(horizontal="center", vertical="center")
+        right      = Alignment(horizontal="right", vertical="center")
         num_fmt    = '#,##0'
         pct_fmt    = '0.00%'
 
         ws = wb.active
         ws.title = f"{agent_name} 정산"
 
-        # 타이틀
+        # 행1: 타이틀 (에이전트명 + 기간)
         ws.merge_cells('A1:G1')
-        ws['A1'] = agent_name
-        ws['A1'].font = Font(bold=True, color="FFFFFF", name="Arial", size=14)
-        ws['A1'].fill = PatternFill("solid", start_color="0F2040")
+        ws['A1'] = f"{agent_name} ({period})"
+        ws['A1'].font = title_font
+        ws['A1'].fill = title_fill
         ws['A1'].alignment = center
 
-        # 헤더
-        headers = ["", "Deposits", "", "", "Wds", "", "합계"]
-        sub_headers = ["Merchant", "Rate", "KRW", "Amount", "Rate", "KRW", "Amount"]
-        ws.append(headers)
-        ws.append(sub_headers)
-
+        # 행2: 대헤더
+        ws.append(["", "Deposits", "", "", "Wds", "", "합계"])
         for cell in ws[2]:
-            cell.font = hdr_font; cell.fill = hdr_fill
+            cell.font = hdr1_font; cell.fill = hdr1_fill
             cell.alignment = center; cell.border = border
+
+        # 행3: 소헤더
+        ws.append(["Merchant", "Rate", "KRW", "Amount", "Rate", "KRW", "Amount"])
         for cell in ws[3]:
-            cell.font = hdr_font; cell.fill = hdr_fill
+            cell.font = hdr2_font; cell.fill = hdr2_fill
             cell.alignment = center; cell.border = border
 
         total_dep_fee = 0
@@ -787,7 +794,7 @@ elif st.session_state.page == 'agent':
             wds_fee = res['wds_fee']
             total_dep_fee += dep_fee
             total_wds_fee += wds_fee
-            row = [
+            ws.append([
                 cfg['name'],
                 cfg['dep_rate'],
                 res['deposits'],
@@ -795,19 +802,17 @@ elif st.session_state.page == 'agent':
                 cfg['wds_rate'],
                 res['withdrawals'],
                 wds_fee,
-            ]
-            ws.append(row)
+            ])
             r = ws.max_row
-            ws.cell(r, 1).font = Font(name="Arial", size=10, bold=True, color="C8D6E5")
-            ws.cell(r, 1).fill = PatternFill("solid", start_color="1A2A3A")
             for col in range(1, 8):
                 cell = ws.cell(r, col)
-                cell.border = border
-                cell.alignment = center
+                cell.font = data_font; cell.fill = data_fill
+                cell.border = border; cell.alignment = center
                 if col in (2, 5): cell.number_format = pct_fmt
                 if col in (3, 4, 6, 7): cell.number_format = num_fmt
 
         # 합계행
+        grand_total = total_dep_fee + total_wds_fee
         ws.append(["합계", "", "", total_dep_fee, "", "", total_wds_fee])
         r = ws.max_row
         for col in range(1, 8):
@@ -816,10 +821,10 @@ elif st.session_state.page == 'agent':
             cell.border = border; cell.alignment = center
             if col in (4, 7): cell.number_format = num_fmt
 
-        # 최종 수수료
-        grand_total = total_dep_fee + total_wds_fee
+        # 총 수수료행
         ws.append(["총 수수료", "", "", "", "", "", grand_total])
         r = ws.max_row
+        ws.merge_cells(f'A{r}:F{r}')
         for col in range(1, 8):
             cell = ws.cell(r, col)
             cell.font = fee_font; cell.fill = fee_fill
@@ -827,8 +832,10 @@ elif st.session_state.page == 'agent':
             if col == 7: cell.number_format = num_fmt
 
         # 컬럼 너비
-        for col, w in zip('ABCDEFG', [16, 8, 16, 14, 8, 16, 14]):
+        for col, w in zip('ABCDEFG', [14, 8, 16, 12, 8, 16, 12]):
             ws.column_dimensions[col].width = w
+        ws.row_dimensions[1].height = 22
+        ws.row_dimensions[2].height = 18
 
         buf = io.BytesIO()
         wb.save(buf)
@@ -961,12 +968,35 @@ elif st.session_state.page == 'agent':
 
         # 엑셀 다운로드
         section_header("03", "엑셀 다운로드", "#a855f7", "168,85,247")
-        period = f"{agent_date_from}~{agent_date_to}".replace('/','') if agent_date_from and agent_date_to else "에이전트정산"
-        excel_data = make_agent_excel(selected_agent, results, period)
+        # 파일명용 period
+        period_file = f"{agent_date_from}~{agent_date_to}".replace('/','') if agent_date_from and agent_date_to else "에이전트정산"
+        # 엑셀 타이틀용 period (04/01~04/15 형식)
+        if agent_date_from and agent_date_to:
+            try:
+                from datetime import datetime as dt
+                d1 = dt.strptime(agent_date_from, "%Y-%m-%d") if "-" in agent_date_from else dt.strptime(agent_date_from, "%m/%d/%Y")
+                d2 = dt.strptime(agent_date_to,   "%Y-%m-%d") if "-" in agent_date_to   else dt.strptime(agent_date_to,   "%m/%d/%Y")
+                period = f"{d1.strftime('%m/%d')}~{d2.strftime('%m/%d')}"
+            except:
+                period = f"{agent_date_from}~{agent_date_to}"
+        else:
+            period = ""
+        # 엑셀 타이틀용 period 재계산
+        if agent_date_from and agent_date_to:
+            try:
+                from datetime import datetime as dt2
+                d1 = dt2.strptime(agent_date_from, "%Y-%m-%d") if "-" in agent_date_from else dt2.strptime(agent_date_from, "%m/%d/%Y")
+                d2 = dt2.strptime(agent_date_to,   "%Y-%m-%d") if "-" in agent_date_to   else dt2.strptime(agent_date_to,   "%m/%d/%Y")
+                period_title = f"{d1.strftime('%m/%d')}~{d2.strftime('%m/%d')}"
+            except:
+                period_title = f"{agent_date_from}~{agent_date_to}"
+        else:
+            period_title = ""
+        excel_data = make_agent_excel(selected_agent, results, period_title)
         st.download_button(
             label="📥 엑셀 다운로드",
             data=excel_data,
-            file_name=f"{selected_agent}_에이전트정산_{period}.xlsx",
+            file_name=f"{selected_agent}_에이전트정산_{period_file}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
         )
