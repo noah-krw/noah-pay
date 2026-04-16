@@ -399,7 +399,7 @@ elif st.session_state.page == 'topup':
         tu_krw_raw = extract_int(st.text_input("금액 (KRW)", key="t_k"))
         if t_rate > 0 and tu_krw_raw > 0:
             total_t_krw = tu_krw_raw
-            tu_amt = round(tu_krw_raw / t_rate, 2)
+            tu_amt = math.ceil(tu_krw_raw / t_rate)
         else:
             tu_amt = 0; total_t_krw = 0
 
@@ -715,18 +715,18 @@ elif st.session_state.page == 'agent':
     AGENTS = {
         'Dean': {
             'merchants': {
-                'dr188':    {'name': 'dr188',     'dep_rate': 0.001, 'wds_rate': 0.001},
-                'drbetssen':{'name': 'drBetssen', 'dep_rate': 0.001, 'wds_rate': 0.001},
+                'dr188':    {'name': 'dr188',     'dep_rate': 0.001, 'wds_rate': 0.001, 'gate_dep': 0.012, 'gate_wds': 0.007},
+                'drbetssen':{'name': 'drBetssen', 'dep_rate': 0.001, 'wds_rate': 0.001, 'gate_dep': 0.014, 'gate_wds': 0.006},
             }
         },
         'Tofi': {
             'merchants': {
-                'spfxm':    {'name': 'spfxm', 'dep_rate': 0.002, 'wds_rate': 0.001},
+                'spfxm':    {'name': 'spfxm', 'dep_rate': 0.002, 'wds_rate': 0.001, 'gate_dep': 0, 'gate_wds': 0},
             }
         },
         'Michell': {
             'merchants': {
-                'v99_BT':   {'name': 'v99_BT', 'dep_rate': 0.001, 'wds_rate': 0.001},
+                'v99_BT':   {'name': 'v99_BT', 'dep_rate': 0.001, 'wds_rate': 0.001, 'gate_dep': 0, 'gate_wds': 0},
             }
         },
     }
@@ -790,21 +790,24 @@ elif st.session_state.page == 'agent':
         total_dep_fee = 0
         total_wds_fee = 0
 
+        gate_fill  = PatternFill("solid", start_color="FFF2CC")
+        gate_font  = Font(bold=True, color="7B5C00", name="Arial", size=10)
+        total_gate = 0
+
         for mid, res in results.items():
             cfg = AGENTS[agent_name]['merchants'][mid]
-            dep_fee = res['dep_fee']
-            wds_fee = res['wds_fee']
+            dep_fee      = res['dep_fee']
+            wds_fee      = res['wds_fee']
+            gate_dep_fee = round(res['deposits']    * cfg.get('gate_dep', 0))
+            gate_wds_fee = round(res['withdrawals'] * cfg.get('gate_wds', 0))
+            gate_total   = gate_dep_fee + gate_wds_fee
             total_dep_fee += dep_fee
             total_wds_fee += wds_fee
-            ws.append([
-                cfg['name'],
-                cfg['dep_rate'],
-                res['deposits'],
-                dep_fee,
-                cfg['wds_rate'],
-                res['withdrawals'],
-                wds_fee,
-            ])
+            total_gate    += gate_total
+
+            # 에이전트 행
+            ws.append([cfg['name'], cfg['dep_rate'], res['deposits'], dep_fee,
+                       cfg['wds_rate'], res['withdrawals'], wds_fee])
             r = ws.max_row
             for col in range(1, 8):
                 cell = ws.cell(r, col)
@@ -813,9 +816,21 @@ elif st.session_state.page == 'agent':
                 if col in (2, 5): cell.number_format = pct_fmt
                 if col in (3, 4, 6, 7): cell.number_format = num_fmt
 
-        # 합계행
+            # 게이트 행
+            if gate_total > 0:
+                ws.append([f"{cfg['name']} (게이트)", cfg.get('gate_dep', 0), res['deposits'], gate_dep_fee,
+                           cfg.get('gate_wds', 0), res['withdrawals'], gate_wds_fee])
+                r = ws.max_row
+                for col in range(1, 8):
+                    cell = ws.cell(r, col)
+                    cell.font = gate_font; cell.fill = gate_fill
+                    cell.border = border; cell.alignment = center
+                    if col in (2, 5): cell.number_format = pct_fmt
+                    if col in (3, 4, 6, 7): cell.number_format = num_fmt
+
+        # 에이전트 합계행
         grand_total = total_dep_fee + total_wds_fee
-        ws.append(["합계", "", "", total_dep_fee, "", "", total_wds_fee])
+        ws.append(["에이전트 합계", "", "", total_dep_fee, "", "", total_wds_fee])
         r = ws.max_row
         for col in range(1, 8):
             cell = ws.cell(r, col)
@@ -823,8 +838,7 @@ elif st.session_state.page == 'agent':
             cell.border = border; cell.alignment = center
             if col in (4, 7): cell.number_format = num_fmt
 
-        # 총 수수료행
-        ws.append(["총 수수료", "", "", "", "", "", grand_total])
+        ws.append(["에이전트 총 수수료", "", "", "", "", "", grand_total])
         r = ws.max_row
         ws.merge_cells(f'A{r}:F{r}')
         for col in range(1, 8):
@@ -832,6 +846,17 @@ elif st.session_state.page == 'agent':
             cell.font = fee_font; cell.fill = fee_fill
             cell.border = border; cell.alignment = center
             if col == 7: cell.number_format = num_fmt
+
+        # 게이트 합계행
+        if total_gate > 0:
+            ws.append(["게이트 합계", "", "", "", "", "", total_gate])
+            r = ws.max_row
+            ws.merge_cells(f'A{r}:F{r}')
+            for col in range(1, 8):
+                cell = ws.cell(r, col)
+                cell.font = gate_font; cell.fill = gate_fill
+                cell.border = border; cell.alignment = center
+                if col == 7: cell.number_format = num_fmt
 
         # 컬럼 너비
         for col, w in zip('ABCDEFG', [14, 8, 16, 12, 8, 16, 12]):
@@ -954,8 +979,14 @@ elif st.session_state.page == 'agent':
         total_dep_fee = 0
         total_wds_fee = 0
 
+        total_gate_fee = 0
         for mid, res in results.items():
             cfg = AGENTS[selected_agent]['merchants'][mid]
+            gate_dep_fee = round(res['deposits']    * cfg.get('gate_dep', 0))
+            gate_wds_fee = round(res['withdrawals'] * cfg.get('gate_wds', 0))
+            gate_total   = gate_dep_fee + gate_wds_fee
+            total_gate_fee += gate_total
+
             st.markdown(f"**▶ {cfg['name']} ({mid})**")
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -965,13 +996,20 @@ elif st.session_state.page == 'agent':
                 st.metric("출금", f"{res['withdrawals']:,} krw")
                 st.metric(f"출금 수수료 ({cfg['wds_rate']*100}%)", f"{res['wds_fee']:,} krw")
             with col3:
-                st.metric("합계 수수료", f"{res['dep_fee'] + res['wds_fee']:,} krw")
+                st.metric("에이전트 합계", f"{res['dep_fee'] + res['wds_fee']:,} krw")
+            if gate_total > 0:
+                gc1, gc2, gc3 = st.columns(3)
+                with gc1: st.metric(f"게이트 입금 ({cfg['gate_dep']*100:.1f}%)", f"{gate_dep_fee:,} krw")
+                with gc2: st.metric(f"게이트 출금 ({cfg['gate_wds']*100:.1f}%)", f"{gate_wds_fee:,} krw")
+                with gc3: st.metric("게이트 합계", f"{gate_total:,} krw")
             total_dep_fee += res['dep_fee']
             total_wds_fee += res['wds_fee']
             st.divider()
 
         grand_total = total_dep_fee + total_wds_fee
-        st.success(f"**{selected_agent} 총 수수료 : {grand_total:,} krw**")
+        st.success(f"**{selected_agent} 에이전트 수수료 : {grand_total:,} krw**")
+        if total_gate_fee > 0:
+            st.info(f"**{selected_agent} 게이트 수수료 : {total_gate_fee:,} krw**")
 
         # 엑셀 다운로드
         section_header("03", "엑셀 다운로드", "#a855f7", "168,85,247")
