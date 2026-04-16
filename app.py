@@ -794,18 +794,17 @@ elif st.session_state.page == 'agent':
         gate_font  = Font(bold=True, color="7B5C00", name="Arial", size=10)
         total_gate = 0
 
+        # ── 시트1: 에이전트 정산 ──
         for mid, res in results.items():
             cfg = AGENTS[agent_name]['merchants'][mid]
             dep_fee      = res['dep_fee']
             wds_fee      = res['wds_fee']
             gate_dep_fee = round(res['deposits']    * cfg.get('gate_dep', 0))
             gate_wds_fee = round(res['withdrawals'] * cfg.get('gate_wds', 0))
-            gate_total   = gate_dep_fee + gate_wds_fee
             total_dep_fee += dep_fee
             total_wds_fee += wds_fee
-            total_gate    += gate_total
+            total_gate    += gate_dep_fee + gate_wds_fee
 
-            # 에이전트 행
             ws.append([cfg['name'], cfg['dep_rate'], res['deposits'], dep_fee,
                        cfg['wds_rate'], res['withdrawals'], wds_fee])
             r = ws.max_row
@@ -816,21 +815,8 @@ elif st.session_state.page == 'agent':
                 if col in (2, 5): cell.number_format = pct_fmt
                 if col in (3, 4, 6, 7): cell.number_format = num_fmt
 
-            # 게이트 행
-            if gate_total > 0:
-                ws.append([f"{cfg['name']} (게이트)", cfg.get('gate_dep', 0), res['deposits'], gate_dep_fee,
-                           cfg.get('gate_wds', 0), res['withdrawals'], gate_wds_fee])
-                r = ws.max_row
-                for col in range(1, 8):
-                    cell = ws.cell(r, col)
-                    cell.font = gate_font; cell.fill = gate_fill
-                    cell.border = border; cell.alignment = center
-                    if col in (2, 5): cell.number_format = pct_fmt
-                    if col in (3, 4, 6, 7): cell.number_format = num_fmt
-
-        # 에이전트 합계행
         grand_total = total_dep_fee + total_wds_fee
-        ws.append(["에이전트 합계", "", "", total_dep_fee, "", "", total_wds_fee])
+        ws.append(["합계", "", "", total_dep_fee, "", "", total_wds_fee])
         r = ws.max_row
         for col in range(1, 8):
             cell = ws.cell(r, col)
@@ -838,7 +824,7 @@ elif st.session_state.page == 'agent':
             cell.border = border; cell.alignment = center
             if col in (4, 7): cell.number_format = num_fmt
 
-        ws.append(["에이전트 총 수수료", "", "", "", "", "", grand_total])
+        ws.append(["총 수수료", "", "", "", "", "", grand_total])
         r = ws.max_row
         ws.merge_cells(f'A{r}:F{r}')
         for col in range(1, 8):
@@ -847,16 +833,71 @@ elif st.session_state.page == 'agent':
             cell.border = border; cell.alignment = center
             if col == 7: cell.number_format = num_fmt
 
-        # 게이트 합계행
+        # ── 시트2: 게이트 정산 ──
         if total_gate > 0:
-            ws.append(["게이트 합계", "", "", "", "", "", total_gate])
-            r = ws.max_row
-            ws.merge_cells(f'A{r}:F{r}')
+            ws2 = wb.create_sheet("게이트 정산")
+            ws2.merge_cells('A1:G1')
+            ws2['A1'] = f"{agent_name} 게이트 정산 ({period})"
+            ws2['A1'].font = Font(bold=True, color="FFFFFF", name="Arial", size=13)
+            ws2['A1'].fill = PatternFill("solid", start_color="7B5C00")
+            ws2['A1'].alignment = center
+
+            ws2.append(["", "Deposits", "", "", "Wds", "", "합계"])
+            for cell in ws2[2]:
+                cell.font = hdr1_font; cell.fill = PatternFill("solid", start_color="C9A800")
+                cell.alignment = center; cell.border = border
+            ws2.merge_cells('B2:D2')
+            ws2.merge_cells('E2:F2')
+
+            ws2.append(["Merchant", "Rate", "KRW", "Amount", "Rate", "KRW", "Amount"])
+            for cell in ws2[3]:
+                cell.font = hdr2_font; cell.fill = gate_fill
+                cell.alignment = center; cell.border = border
+
+            total_gate_dep = 0
+            total_gate_wds = 0
+            for mid, res in results.items():
+                cfg = AGENTS[agent_name]['merchants'][mid]
+                if cfg.get('gate_dep', 0) == 0 and cfg.get('gate_wds', 0) == 0:
+                    continue
+                gate_dep_fee = round(res['deposits']    * cfg.get('gate_dep', 0))
+                gate_wds_fee = round(res['withdrawals'] * cfg.get('gate_wds', 0))
+                total_gate_dep += gate_dep_fee
+                total_gate_wds += gate_wds_fee
+
+                ws2.append([cfg['name'], cfg.get('gate_dep', 0), res['deposits'], gate_dep_fee,
+                            cfg.get('gate_wds', 0), res['withdrawals'], gate_wds_fee])
+                r2 = ws2.max_row
+                for col in range(1, 8):
+                    cell = ws2.cell(r2, col)
+                    cell.font = data_font; cell.fill = data_fill
+                    cell.border = border; cell.alignment = center
+                    if col in (2, 5): cell.number_format = pct_fmt
+                    if col in (3, 4, 6, 7): cell.number_format = num_fmt
+
+            gate_grand = total_gate_dep + total_gate_wds
+            ws2.append(["합계", "", "", total_gate_dep, "", "", total_gate_wds])
+            r2 = ws2.max_row
             for col in range(1, 8):
-                cell = ws.cell(r, col)
+                cell = ws2.cell(r2, col)
                 cell.font = gate_font; cell.fill = gate_fill
                 cell.border = border; cell.alignment = center
+                if col in (4, 7): cell.number_format = num_fmt
+
+            ws2.append(["총 게이트 수수료", "", "", "", "", "", gate_grand])
+            r2 = ws2.max_row
+            ws2.merge_cells(f'A{r2}:F{r2}')
+            for col in range(1, 8):
+                cell = ws2.cell(r2, col)
+                cell.font = Font(bold=True, color="FFFFFF", name="Arial", size=10)
+                cell.fill = PatternFill("solid", start_color="C9A800")
+                cell.border = border; cell.alignment = center
                 if col == 7: cell.number_format = num_fmt
+
+            for col, w in zip('ABCDEFG', [14, 8, 16, 12, 8, 16, 12]):
+                ws2.column_dimensions[col].width = w
+            ws2.row_dimensions[1].height = 22
+            ws2.row_dimensions[2].height = 18
 
         # 컬럼 너비
         for col, w in zip('ABCDEFG', [14, 8, 16, 12, 8, 16, 12]):
