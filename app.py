@@ -764,17 +764,17 @@ elif st.session_state.page == 'agent':
         pct_fmt    = '0.00%'
 
         ws = wb.active
-        ws.title = f"{agent_name} 정산"
+        ws.title = "Agent Settlement"
 
         # 행1: 타이틀 (에이전트명 + 기간)
         ws.merge_cells('A1:G1')
-        ws['A1'] = f"{agent_name} ({period})"
+        ws['A1'] = f"{agent_name} Agent Settlement ({period})"
         ws['A1'].font = title_font
         ws['A1'].fill = title_fill
         ws['A1'].alignment = center
 
         # 행2: 대헤더
-        ws.append(["", "Deposits", "", "", "Wds", "", "합계"])
+        ws.append(["", "Deposits", "", "", "Withdrawals", "", "Total"])
         for cell in ws[2]:
             cell.font = hdr1_font; cell.fill = hdr1_fill
             cell.alignment = center; cell.border = border
@@ -816,7 +816,7 @@ elif st.session_state.page == 'agent':
                 if col in (3, 4, 6, 7): cell.number_format = num_fmt
 
         grand_total = total_dep_fee + total_wds_fee
-        ws.append(["합계", "", "", total_dep_fee, "", "", total_wds_fee])
+        ws.append(["Subtotal", "", "", total_dep_fee, "", "", total_wds_fee])
         r = ws.max_row
         for col in range(1, 8):
             cell = ws.cell(r, col)
@@ -824,7 +824,7 @@ elif st.session_state.page == 'agent':
             cell.border = border; cell.alignment = center
             if col in (4, 7): cell.number_format = num_fmt
 
-        ws.append(["총 수수료", "", "", "", "", "", grand_total])
+        ws.append(["Total Fee", "", "", "", "", "", grand_total])
         r = ws.max_row
         ws.merge_cells(f'A{r}:F{r}')
         for col in range(1, 8):
@@ -835,14 +835,14 @@ elif st.session_state.page == 'agent':
 
         # ── 시트2: 게이트 정산 ──
         if total_gate > 0:
-            ws2 = wb.create_sheet("게이트 정산")
+            ws2 = wb.create_sheet("Gate Settlement")
             ws2.merge_cells('A1:G1')
-            ws2['A1'] = f"{agent_name} 게이트 정산 ({period})"
+            ws2['A1'] = f"dragong Gate Settlement ({period})"
             ws2['A1'].font = title_font
             ws2['A1'].fill = title_fill
             ws2['A1'].alignment = center
 
-            ws2.append(["", "Deposits", "", "", "Wds", "", "합계"])
+            ws2.append(["", "Deposits", "", "", "Withdrawals", "", "Total"])
             for cell in ws2[2]:
                 cell.font = hdr1_font; cell.fill = hdr1_fill
                 cell.alignment = center; cell.border = border
@@ -876,7 +876,7 @@ elif st.session_state.page == 'agent':
                     if col in (3, 4, 6, 7): cell.number_format = num_fmt
 
             gate_grand = total_gate_dep + total_gate_wds
-            ws2.append(["합계", "", "", total_gate_dep, "", "", total_gate_wds])
+            ws2.append(["Subtotal", "", "", total_gate_dep, "", "", total_gate_wds])
             r2 = ws2.max_row
             for col in range(1, 8):
                 cell = ws2.cell(r2, col)
@@ -884,7 +884,7 @@ elif st.session_state.page == 'agent':
                 cell.border = border; cell.alignment = center
                 if col in (4, 7): cell.number_format = num_fmt
 
-            ws2.append(["총 게이트 수수료", "", "", "", "", "", gate_grand])
+            ws2.append(["Total Gate Fee", "", "", "", "", "", gate_grand])
             r2 = ws2.max_row
             ws2.merge_cells(f'A{r2}:F{r2}')
             for col in range(1, 8):
