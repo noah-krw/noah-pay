@@ -838,20 +838,20 @@ elif st.session_state.page == 'agent':
             ws2 = wb.create_sheet("게이트 정산")
             ws2.merge_cells('A1:G1')
             ws2['A1'] = f"{agent_name} 게이트 정산 ({period})"
-            ws2['A1'].font = Font(bold=True, color="FFFFFF", name="Arial", size=13)
-            ws2['A1'].fill = PatternFill("solid", start_color="7B5C00")
+            ws2['A1'].font = title_font
+            ws2['A1'].fill = title_fill
             ws2['A1'].alignment = center
 
             ws2.append(["", "Deposits", "", "", "Wds", "", "합계"])
             for cell in ws2[2]:
-                cell.font = hdr1_font; cell.fill = PatternFill("solid", start_color="C9A800")
+                cell.font = hdr1_font; cell.fill = hdr1_fill
                 cell.alignment = center; cell.border = border
             ws2.merge_cells('B2:D2')
             ws2.merge_cells('E2:F2')
 
             ws2.append(["Merchant", "Rate", "KRW", "Amount", "Rate", "KRW", "Amount"])
             for cell in ws2[3]:
-                cell.font = hdr2_font; cell.fill = gate_fill
+                cell.font = hdr2_font; cell.fill = hdr2_fill
                 cell.alignment = center; cell.border = border
 
             total_gate_dep = 0
@@ -880,7 +880,7 @@ elif st.session_state.page == 'agent':
             r2 = ws2.max_row
             for col in range(1, 8):
                 cell = ws2.cell(r2, col)
-                cell.font = gate_font; cell.fill = gate_fill
+                cell.font = total_font; cell.fill = total_fill
                 cell.border = border; cell.alignment = center
                 if col in (4, 7): cell.number_format = num_fmt
 
@@ -889,8 +889,7 @@ elif st.session_state.page == 'agent':
             ws2.merge_cells(f'A{r2}:F{r2}')
             for col in range(1, 8):
                 cell = ws2.cell(r2, col)
-                cell.font = Font(bold=True, color="FFFFFF", name="Arial", size=10)
-                cell.fill = PatternFill("solid", start_color="C9A800")
+                cell.font = fee_font; cell.fill = fee_fill
                 cell.border = border; cell.alignment = center
                 if col == 7: cell.number_format = num_fmt
 
