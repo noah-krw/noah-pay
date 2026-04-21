@@ -10,21 +10,22 @@ GITHUB_FILE  = st.secrets.get("GITHUB_FILE", "merchants.json")
 GITHUB_API   = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_FILE}"
 
 def load_data():
-    """GitHub에서 merchants.json 읽기"""
-    try:
-        headers = {"Authorization": f"token {GITHUB_TOKEN}",
-                   "Accept": "application/vnd.github+json"}
-        r = requests.get(GITHUB_API, headers=headers, timeout=5)
-        if r.status_code == 200:
-            content = base64.b64decode(r.json()["content"]).decode("utf-8")
-            data = json.loads(content)
-            if "merchants" not in data:
-                return {"my_wallet": data.get("my_wallet", ""), "merchants": data}
-            return data
-        else:
-            st.warning(f"⚠️ GitHub 읽기 실패 ({r.status_code}) - 기본값으로 시작합니다.")
-    except Exception as e:
-        st.warning(f"⚠️ GitHub 연결 오류: {e}")
+    """GitHub에서 merchants.json 읽기 (재시도 포함)"""
+    headers = {"Authorization": f"token {GITHUB_TOKEN}",
+               "Accept": "application/vnd.github+json"}
+    for attempt in range(3):
+        try:
+            r = requests.get(GITHUB_API, headers=headers, timeout=8)
+            if r.status_code == 200:
+                content = base64.b64decode(r.json()["content"]).decode("utf-8")
+                data = json.loads(content)
+                if "merchants" not in data:
+                    return {"my_wallet": data.get("my_wallet", ""), "merchants": data}
+                return data
+            else:
+                time.sleep(1)
+        except Exception:
+            time.sleep(2)
     return get_default_data()
 
 def save_data(data):
