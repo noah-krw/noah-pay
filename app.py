@@ -336,7 +336,7 @@ elif st.session_state.page == 'topup':
     bithumb_str = ("&#8361; " + fmt(live_price)) if live_price > 0 else "&mdash;"
     st.markdown("""
     <div style='display:flex;align-items:center;gap:12px;margin-bottom:12px;'>
-        <a href='https://www.google.com/search?q=테더+원화+시세&hl=ko&gl=KR'
+        <a href='https://www.google.com/finance/quote/USDT-KRW'
            target='_blank' style='font-family:Space Mono,monospace;font-size:0.85em;font-weight:700;
            color:#f39c12;border:1px solid rgba(243,156,18,0.5);border-radius:8px;padding:10px 24px;
            text-decoration:none;background:rgba(243,156,18,0.08);'>🔍 구글 시세 확인</a>
