@@ -10,6 +10,11 @@
             "wallet": "",
             "fee": "0",
             "note": "게이트"
+        },
+        "drbetssen": {
+            "wallet": "",
+            "fee": "0.5",
+            "note": ""
         }
     }
 }
