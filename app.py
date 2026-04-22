@@ -63,8 +63,11 @@ def get_default_data():
 
 def extract_int(text):
     if not text: return 0
-    num_str = re.sub(r'[^0-9]', '', str(text))
-    return int(num_str) if num_str else 0
+    s = str(text).strip()
+    neg = s.startswith('-')
+    num_str = re.sub(r'[^0-9]', '', s)
+    if not num_str: return 0
+    return -int(num_str) if neg else int(num_str)
 
 def fmt(n): return f"{n:,}"
 
