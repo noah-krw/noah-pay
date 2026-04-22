@@ -327,8 +327,8 @@ if st.session_state.page == 'settle':
             editable_box(w_msg, "red", "res_05")
         else:
             # 잔액 부족 안내 (2000만 미만 또는 마이너스)
-            w_msg = (f"Hello, Team\nThe current balance of the merchant is insufficient for exchange.\n"
-                     f"If you wish to proceed with the exchange, please make a top-up first.\nThank you\n\n"
+            w_msg = (f"Hello, Team\nThe current merchant balance is insufficient to proceed with payout.\n"
+                     f"Please make a top-up first if you wish to continue.\nThank you\n\n"
                      f"Balance update\n\n- {selected_m} : {fmt(w_bal)} krw")
             editable_box(w_msg, "yellow", "res_05")
 
