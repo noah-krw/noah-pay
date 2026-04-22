@@ -211,6 +211,18 @@ if 'bithumb_price' not in st.session_state:
         st.session_state.bithumb_price = 0
     st.session_state.bithumb_ts = time.time()
 
+if 'upbit_price' not in st.session_state:
+    try:
+        _r = requests.get('https://api.upbit.com/v1/ticker?markets=KRW-USDT', timeout=3)
+        _data = _r.json()
+        if isinstance(_data, list) and len(_data) > 0 and 'trade_price' in _data[0]:
+            st.session_state.upbit_price = int(float(_data[0]['trade_price']))
+        else:
+            st.session_state.upbit_price = 0
+    except:
+        st.session_state.upbit_price = 0
+    st.session_state.upbit_ts = time.time()
+
 with st.sidebar:
     st.markdown("""
     <div style="font-family:'Space Mono',monospace;font-size:1.1em;font-weight:700;
@@ -342,29 +354,49 @@ elif st.session_state.page == 'topup':
     default_idx = sorted_keys.index('spfxm') if 'spfxm' in sorted_keys else 0
     selected_m = st.selectbox("", sorted_keys, index=default_idx, label_visibility="collapsed", key="topup_merchant")
     m_info = merchants[selected_m]
-    live_price = st.session_state.get("bithumb_price", 0)
+
+    # ── Upbit 시세 전광판 (파란색, 참고용) ──
+    upbit_live = st.session_state.get("upbit_price", 0)
     kst = datetime.timezone(datetime.timedelta(hours=9))
-    fetched_time = datetime.datetime.fromtimestamp(st.session_state.get("bithumb_ts", time.time()), tz=kst).strftime("%H:%M:%S")
-    bithumb_str = ("&#8361; " + fmt(live_price)) if live_price > 0 else "&mdash;"
+    upbit_time = datetime.datetime.fromtimestamp(st.session_state.get("upbit_ts", time.time()), tz=kst).strftime("%H:%M:%S")
+    upbit_str = ("&#8361; " + fmt(upbit_live)) if upbit_live > 0 else "&mdash;"
+    upbit_html = (
+        "<style>@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.15;}}</style>"
+        "<div style='padding:14px 22px;margin-bottom:14px;background:linear-gradient(135deg,#030f1c,#041810);"
+        "border:1px solid rgba(93,173,226,0.3);border-radius:10px;box-shadow:0 0 18px rgba(93,173,226,0.1);"
+        "display:flex;align-items:center;justify-content:space-between;'>"
+        "<div style='display:flex;align-items:center;gap:8px;'>"
+        "<span style='display:inline-block;width:7px;height:7px;border-radius:50%;background:#2ecc71;"
+        "box-shadow:0 0 7px #2ecc71;animation:blink 1.5s infinite;'></span>"
+        "<span style='font-family:Space Mono,monospace;font-size:0.68em;color:#5dade2;letter-spacing:0.1em;'>UPBIT &nbsp; USDT / KRW &nbsp; (참고용)</span>"
+        "</div>"
+        "<div style='display:flex;flex-direction:column;align-items:center;gap:3px;'>"
+        "<div style='font-family:Space Mono,monospace;font-size:1.8em;font-weight:700;color:#ffffff;'>" + upbit_str + "</div>"
+        "<div style='font-family:Space Mono,monospace;font-size:0.68em;color:#5dade2;'>" + upbit_time + "</div>"
+        "</div>"
+        "<a href='https://www.google.com/finance/quote/USDT-KRW' "
+        "target='_blank' style='font-family:Space Mono,monospace;font-size:0.85em;font-weight:700;"
+        "color:#f39c12;border:1px solid rgba(243,156,18,0.5);border-radius:8px;padding:10px 20px;"
+        "text-decoration:none;background:rgba(243,156,18,0.08);'>구글 시세 확인</a></div>"
+    )
+    st.markdown(upbit_html, unsafe_allow_html=True)
+    if st.button('⟳  시세 새로고침', key='refresh_upbit'):
+        if 'upbit_price' in st.session_state: del st.session_state['upbit_price']
+        st.rerun()
+
     st.markdown("""
-    <div style='display:flex;align-items:center;gap:12px;margin-bottom:12px;'>
-        <a href='https://www.google.com/finance/quote/USDT-KRW'
-           target='_blank' style='font-family:Space Mono,monospace;font-size:0.85em;font-weight:700;
-           color:#f39c12;border:1px solid rgba(243,156,18,0.5);border-radius:8px;padding:10px 24px;
-           text-decoration:none;background:rgba(243,156,18,0.08);'>🔍 구글 시세 확인</a>
-    </div>
-    <div style='padding:10px 16px;background:rgba(243,156,18,0.08);
+    <div style='padding:10px 16px;margin-bottom:14px;background:rgba(243,156,18,0.08);
         border-left:3px solid #f39c12;border-radius:6px;
         font-family:Noto Sans KR,sans-serif;font-size:0.88em;color:#f8c471;'>
-        ⚠️ 탑업은 <b>구글 테더 시세</b> 기준으로 진행합니다. 위 버튼을 확인 후 아래에 입력하세요.
+        ⚠️ 탑업은 <b>구글 테더 시세</b> 기준으로 진행합니다. 위 Upbit 시세는 참고용이며, 구글 시세를 확인 후 아래에 직접 입력하세요.
     </div>
     """, unsafe_allow_html=True)
-    section_header("01", "TOP-UP 탑업", "#2ecc71", "46,204,113")
 
+    section_header("01", "TOP-UP 탑업", "#2ecc71", "46,204,113")
 
     ts_val = extract_int(st.text_input("구글 테더 시세 입력 (KRW)", key="t_s",
                                         placeholder="구글에서 확인한 테더 시세를 입력하세요"))
-    tb_val = live_price  # 참고용
+    tb_val = st.session_state.get("bithumb_price", 0)  # 참고용
 
     if ts_val > 0:
         rate_05 = math.floor(ts_val * (1 - 0.005))  # -0.5%
