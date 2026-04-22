@@ -317,12 +317,20 @@ if st.session_state.page == 'settle':
 
     section_header("05", "정산 (SETTLEMENT) 요청", "#e74c3c", "231,76,60")
     w_bal = extract_int(st.text_input("하이 밸런스 경고용 잔액", key="w_in"))
-    if w_bal > 0 and s_rate > 0:
+    if w_bal != 0 and s_rate > 0:
         st.markdown(f'<p class="rate-text">▸ 적용 환율 &nbsp; 1usdt = {fmt(s_rate)} krw</p>', unsafe_allow_html=True)
-        w_msg = (f"Hello, Team\nCurrently, the balance of the merchants is too high.\n"
-                 f"To ensure a safe balance, please proceed with USDT settlement.\nThank you\n\n"
-                 f"Balance update\n\n- {selected_m} : {fmt(w_bal)} krw")
-        editable_box(w_msg, "red", "res_05")
+        if w_bal >= 20000000:
+            # 하이 밸런스 경고
+            w_msg = (f"Hello, Team\nCurrently, the balance of the merchants is too high.\n"
+                     f"To ensure a safe balance, please proceed with USDT settlement.\nThank you\n\n"
+                     f"Balance update\n\n- {selected_m} : {fmt(w_bal)} krw")
+            editable_box(w_msg, "red", "res_05")
+        else:
+            # 잔액 부족 안내 (2000만 미만 또는 마이너스)
+            w_msg = (f"Hello, Team\nThe current balance of the merchant is insufficient for exchange.\n"
+                     f"If you wish to proceed with the exchange, please make a top-up first.\nThank you\n\n"
+                     f"Balance update\n\n- {selected_m} : {fmt(w_bal)} krw")
+            editable_box(w_msg, "yellow", "res_05")
 
 # ══════════════════════════════════════════════════════════
 # 탑업 페이지
