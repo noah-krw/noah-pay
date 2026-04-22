@@ -216,11 +216,11 @@ if 'upbit_price' not in st.session_state:
         _r = requests.get('https://api.upbit.com/v1/ticker?markets=KRW-USDT', timeout=3)
         _data = _r.json()
         if isinstance(_data, list) and len(_data) > 0 and 'trade_price' in _data[0]:
-            st.session_state.upbit_price = float(_data[0]['trade_price'])
+            st.session_state.upbit_price = int(float(_data[0]['trade_price']))
         else:
-            st.session_state.upbit_price = 0.0
+            st.session_state.upbit_price = 0
     except:
-        st.session_state.upbit_price = 0.0
+        st.session_state.upbit_price = 0
     st.session_state.upbit_ts = time.time()
 
 with st.sidebar:
@@ -359,7 +359,7 @@ elif st.session_state.page == 'topup':
     upbit_live = st.session_state.get("upbit_price", 0)
     kst = datetime.timezone(datetime.timedelta(hours=9))
     upbit_time = datetime.datetime.fromtimestamp(st.session_state.get("upbit_ts", time.time()), tz=kst).strftime("%H:%M:%S")
-    upbit_str = ("&#8361; " + f"{upbit_live:,.4f}") if upbit_live > 0 else "&mdash;"
+    upbit_str = ("&#8361; " + fmt(upbit_live)) if upbit_live > 0 else "&mdash;"
     upbit_html = (
         "<style>@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.15;}}</style>"
         "<div style='padding:14px 22px;margin-bottom:14px;background:linear-gradient(135deg,#030f1c,#041810);"
